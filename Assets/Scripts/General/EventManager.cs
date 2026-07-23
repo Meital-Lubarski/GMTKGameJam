@@ -6,5 +6,8 @@ namespace General
     { 
         //Event Template
         //public static Action<bool> EventTemplate;
+        public static Action<float> OnChargeChanged;
+        public static Action<int> OnBarsChanged;
+        public static Action OnBatteryEmpty;
     }
 }
