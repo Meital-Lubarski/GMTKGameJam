@@ -97,10 +97,14 @@ namespace Ghost
             float randomZ = Random.Range(-walkPointRange, walkPointRange);
             float randomX = Random.Range(-walkPointRange, walkPointRange);
 
-            _walkPoint = new Vector3(transform.position.x + randomX, transform.position.y, transform.position.z + randomZ);
+            Vector3 candidate = new Vector3(transform.position.x + randomX, transform.position.y, transform.position.z + randomZ);
 
-            if (Physics.Raycast(_walkPoint, -transform.up, 2f, whatIsGround))
+            // Validate the candidate point is actually on the NavMesh (robust regardless of height/ground layer)
+            if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 4f, NavMesh.AllAreas))
+            {
+                _walkPoint = hit.position;
                 _walkPointSet = true;
+            }
         }
 
         private void ChasePlayer()
