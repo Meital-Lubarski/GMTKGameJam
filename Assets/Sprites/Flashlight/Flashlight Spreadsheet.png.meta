@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 912950eee5566634aa9ddf78fe4a7430
+guid: 6ee8321f976864c40ba81d7ebea7e0c5
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -43,12 +43,12 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 1
+  spriteMode: 2
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 1000
+  spritePixelsToUnits: 100
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -147,12 +147,122 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
-    sprites: []
+    sprites:
+    - serializedVersion: 2
+      name: Flashlight Spreadsheet_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 482
+        width: 633
+        height: 482
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 97cc032b3988f8545b2d67e90a23441f
+      internalID: 1662683055
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Flashlight Spreadsheet_1
+      rect:
+        serializedVersion: 2
+        x: 633
+        y: 482
+        width: 633
+        height: 482
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d7a86c1ff32580e4d92f426929c00936
+      internalID: 2102913669
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Flashlight Spreadsheet_2
+      rect:
+        serializedVersion: 2
+        x: 1266
+        y: 482
+        width: 633
+        height: 482
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8a44adb733751bc40bcac69be2a9f1dd
+      internalID: -683173715
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Flashlight Spreadsheet_3
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 633
+        height: 482
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 774bc02c6cac0934a9cfd83b79959d2e
+      internalID: 2011239488
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Flashlight Spreadsheet_4
+      rect:
+        serializedVersion: 2
+        x: 633
+        y: 0
+        width: 633
+        height: 482
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0da450953a36db24ebd771437a78af38
+      internalID: 1924535986
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 5e97eb03825dee720800000000000000
+    spriteID: 824683add66993148b05745559ef8777
     internalID: 0
     vertices: []
     indices: 
@@ -160,8 +270,17 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     spriteCustomMetadata:
-      entries: []
-    nameFileIdTable: {}
+      entries:
+      - key: SpriteEditor.SliceOnImport
+        value: True
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":true,"gridCellCount":{"x":3.0,"y":2.0},"gridSpriteSize":{"x":633.0,"y":482.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":2,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      Flashlight Spreadsheet_0: 1662683055
+      Flashlight Spreadsheet_1: 2102913669
+      Flashlight Spreadsheet_2: -683173715
+      Flashlight Spreadsheet_3: 2011239488
+      Flashlight Spreadsheet_4: 1924535986
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
