@@ -91,7 +91,14 @@ public class FlashlightController : MonoBehaviour
             flashlightAction.action.performed += OnFlashlightPerformed;
             flashlightAction.action.Enable();
         }
+    }
 
+    /*
+     * The starting state is decided here rather than in OnEnable so the
+     * battery has already been filled by its own Awake.
+     */
+    private void Start()
+    {
         // Never start lit on a dead battery.
         SetFlashlightOn(
             startTurnedOn &&
