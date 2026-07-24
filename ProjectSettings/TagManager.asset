@@ -16,7 +16,7 @@ TagManager:
   - Player
   - Floor
   - Ghost
-  - 
+  - Flashlight
   - 
   - 
   - 
@@ -40,6 +40,9 @@ TagManager:
   - 
   - 
   m_SortingLayers:
+  - name: Foreground
+    uniqueID: 3199267449
+    locked: 0
   - name: Default
     uniqueID: 0
     locked: 0
