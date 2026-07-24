@@ -4116,7 +4116,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TutorialController
   flashlightButton: {fileID: 1433042778}
-  gameSceneName: MayScene
+  tutorialPanel: {fileID: 2137130907}
+  slideDuration: 1.2
+  extraSlideDistance: 100
+  screensCamera: {fileID: 141438655}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
