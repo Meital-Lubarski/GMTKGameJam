@@ -14,9 +14,9 @@ GameObject:
   - component: {fileID: 6201747056966703322}
   - component: {fileID: 7653995467378842191}
   - component: {fileID: 6873906372912119417}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Ghost
-  m_TagString: Untagged
+  m_TagString: Ghost
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -158,7 +158,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1600522754069003555}
   - component: {fileID: 7941103674730345428}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: GhostVisuals
   m_TagString: Untagged
   m_Icon: {fileID: 0}
