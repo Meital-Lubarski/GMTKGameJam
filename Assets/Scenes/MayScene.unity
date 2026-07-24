@@ -135,6 +135,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: FirstPersonPlayer
       objectReference: {fileID: 0}
+    - target: {fileID: 7980007786326134619, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
+      propertyPath: ghost
+      value: 
+      objectReference: {fileID: 1774028720}
     - target: {fileID: 8396610744122045648, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0.84136
@@ -178,53 +182,13 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 8638849344971053621, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 305803318}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
 --- !u!4 &292103349 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2481795498283086774, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
   m_PrefabInstance: {fileID: 292103348}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &305803314 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 8638849344971053621, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
-  m_PrefabInstance: {fileID: 292103348}
-  m_PrefabAsset: {fileID: 0}
---- !u!108 &305803317 stripped
-Light:
-  m_CorrespondingSourceObject: {fileID: 3178348346059270527, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
-  m_PrefabInstance: {fileID: 292103348}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &305803318
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 305803314}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: eb91346823159444682cb048be670069, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::FlashlightController
-  batteryManager: {fileID: 928991287}
-  flashlight: {fileID: 305803317}
-  flashlightOrigin: {fileID: 292103349}
-  ghost: {fileID: 1774028720}
-  ghostCloseDistance: 8
-  weakLightIntensity: 2
-  strongLightIntensity: 8
-  weakDrainPerSecond: 0.5
-  strongDrainPerSecond: 2
-  ghostLayer:
-    serializedVersion: 2
-    m_Bits: 0
-  detectionDistance: 30
-  detectionRadius: 0.4
-  stunAction: {fileID: 0}
 --- !u!1001 &413208442
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -394,17 +358,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &928991287 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 8986725812793832302, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
-  m_PrefabInstance: {fileID: 292103348}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 17541972226683b4bac24091e3440569, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BatteryManager
 --- !u!1 &1218695977
 GameObject:
   m_ObjectHideFlags: 0
@@ -543,10 +496,6 @@ PrefabInstance:
     - target: {fileID: 4769356451660146794, guid: a537dc2bba9f4974abcf8a491648bd90, type: 3}
       propertyPath: m_Name
       value: Stamina
-      objectReference: {fileID: 0}
-    - target: {fileID: 4769356451660146794, guid: a537dc2bba9f4974abcf8a491648bd90, type: 3}
-      propertyPath: m_IsActive
-      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5696814206045877169, guid: a537dc2bba9f4974abcf8a491648bd90, type: 3}
       propertyPath: m_LocalPosition.x
@@ -775,10 +724,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 3013515136886887848, guid: 95b34749aed1b8d4390a8aab784376a4, type: 3}
-      propertyPath: m_NavMeshData
-      value: 
-      objectReference: {fileID: 23800000, guid: 195d8e57bd6bc054ea083080eb74c52f, type: 2}
     - target: {fileID: 6594129329985844049, guid: 95b34749aed1b8d4390a8aab784376a4, type: 3}
       propertyPath: m_Name
       value: EnviromentPiece

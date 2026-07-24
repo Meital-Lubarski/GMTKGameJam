@@ -45,6 +45,7 @@ GameObject:
   - component: {fileID: 5977369077860538260}
   - component: {fileID: 3178348346059270527}
   - component: {fileID: 7413552249036043650}
+  - component: {fileID: 7980007786326134619}
   m_Layer: 6
   m_Name: Spot Light
   m_TagString: Untagged
@@ -161,6 +162,33 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!114 &7980007786326134619
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8638849344971053621}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eb91346823159444682cb048be670069, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FlashlightController
+  batteryManager: {fileID: 8986725812793832302}
+  flashlight: {fileID: 3178348346059270527}
+  flashlightOrigin: {fileID: 2481795498283086774}
+  ghost: {fileID: 0}
+  ghostCloseDistance: 8
+  weakLightIntensity: 2
+  strongLightIntensity: 8
+  weakDrainPerSecond: 0.5
+  strongDrainPerSecond: 2
+  ghostLayer:
+    serializedVersion: 2
+    m_Bits: 256
+  detectionDistance: 30
+  detectionRadius: 0.4
+  stunAction: {fileID: 1781555164194001046, guid: 052faaac586de48259a63d0c4782560b, type: 3}
 --- !u!1001 &3061180885143236156
 PrefabInstance:
   m_ObjectHideFlags: 0
