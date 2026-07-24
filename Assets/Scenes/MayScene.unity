@@ -822,6 +822,7 @@ GameObject:
   - component: {fileID: 1755959661}
   - component: {fileID: 1755959663}
   - component: {fileID: 1755959662}
+  - component: {fileID: 1755959664}
   m_Layer: 5
   m_Name: Timer
   m_TagString: Untagged
@@ -948,6 +949,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1755959660}
   m_CullTransparentMesh: 1
+--- !u!114 &1755959664
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1755959660}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12c9285e61fb8864c9d3fef3a1e3e779, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SurvivalTimer
+  timerText: {fileID: 1755959662}
+  startOnEnable: 1
 --- !u!4 &1774028720 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1074311750985482001, guid: 147b3a02cb6cdf543830e42d8133a2a1, type: 3}
