@@ -22,6 +22,8 @@ public class BatteryPickup : MonoBehaviour, IInteractable
     [SerializeField, Range(0f, 1f)] private float pickupVolume = 1f;
 
     private BatteryManager batteryManager;
+    private PlayerStamina playerStamina;
+
     private Collider pickupCollider;
     private Renderer[] pickupRenderers;
 
@@ -30,11 +32,20 @@ public class BatteryPickup : MonoBehaviour, IInteractable
 
     private void Awake()
     {
-        batteryManager = FindFirstObjectByType<BatteryManager>();
-        pickupCollider = GetComponent<Collider>();
-        pickupRenderers = GetComponentsInChildren<Renderer>(true);
+        batteryManager =
+            FindFirstObjectByType<BatteryManager>();
 
-        currentSpawnPointIndex = FindClosestSpawnPointIndex();
+        playerStamina =
+            FindFirstObjectByType<PlayerStamina>();
+
+        pickupCollider =
+            GetComponent<Collider>();
+
+        pickupRenderers =
+            GetComponentsInChildren<Renderer>(true);
+
+        currentSpawnPointIndex =
+            FindClosestSpawnPointIndex();
     }
 
     public void Interact()
@@ -54,14 +65,52 @@ public class BatteryPickup : MonoBehaviour, IInteractable
             return;
         }
 
-        if (batteryManager.CurrentCharge >= batteryManager.MaxCharge)
+        /*
+         * מאפשר איסוף אם:
+         * - סוללת הפנס לא מלאה
+         * או
+         * - הסטמינה לא מלאה
+         *
+         * אחרת אין טעם לאסוף את הסוללה.
+         */
+        bool flashlightBatteryIsFull =
+            batteryManager.CurrentCharge >=
+            batteryManager.MaxCharge;
+
+        bool staminaIsFull =
+            playerStamina == null ||
+            playerStamina.CurrentStamina >=
+            playerStamina.MaxStamina;
+
+        if (
+            flashlightBatteryIsFull &&
+            staminaIsFull
+        )
         {
             return;
         }
 
-        batteryManager.RechargeBars(barsToRecharge);
+        batteryManager.RechargeBars(
+            barsToRecharge
+        );
 
-        if (pickupSound != null && SoundManager.Instance != null)
+        if (playerStamina != null)
+        {
+            playerStamina.RefillStamina();
+        }
+        else
+        {
+            Debug.LogWarning(
+                "BatteryPickup could not find PlayerStamina. " +
+                "The flashlight battery was recharged, but stamina was not refilled.",
+                this
+            );
+        }
+
+        if (
+            pickupSound != null &&
+            SoundManager.Instance != null
+        )
         {
             SoundManager.Instance.PlaySfx(
                 pickupSound,
@@ -69,20 +118,26 @@ public class BatteryPickup : MonoBehaviour, IInteractable
             );
         }
 
-        StartCoroutine(RespawnRoutine());
+        StartCoroutine(
+            RespawnRoutine()
+        );
     }
 
     private IEnumerator RespawnRoutine()
     {
         isRespawning = true;
+
         SetPickupVisible(false);
 
         if (respawnDelay > 0f)
         {
-            yield return new WaitForSeconds(respawnDelay);
+            yield return new WaitForSeconds(
+                respawnDelay
+            );
         }
 
         MoveToRandomSpawnPoint();
+
         SetPickupVisible(true);
 
         isRespawning = false;
@@ -90,7 +145,10 @@ public class BatteryPickup : MonoBehaviour, IInteractable
 
     private void MoveToRandomSpawnPoint()
     {
-        if (spawnPoints == null || spawnPoints.Length == 0)
+        if (
+            spawnPoints == null ||
+            spawnPoints.Length == 0
+        )
         {
             Debug.LogWarning(
                 "BatteryPickup has no spawn points assigned.",
@@ -100,9 +158,11 @@ public class BatteryPickup : MonoBehaviour, IInteractable
             return;
         }
 
-        int nextIndex = GetRandomSpawnPointIndex();
+        int nextIndex =
+            GetRandomSpawnPointIndex();
 
-        Transform nextSpawnPoint = spawnPoints[nextIndex];
+        Transform nextSpawnPoint =
+            spawnPoints[nextIndex];
 
         if (nextSpawnPoint == null)
         {
@@ -119,7 +179,8 @@ public class BatteryPickup : MonoBehaviour, IInteractable
             nextSpawnPoint.rotation
         );
 
-        currentSpawnPointIndex = nextIndex;
+        currentSpawnPointIndex =
+            nextIndex;
     }
 
     private int GetRandomSpawnPointIndex()
@@ -133,11 +194,15 @@ public class BatteryPickup : MonoBehaviour, IInteractable
 
         do
         {
-            nextIndex = Random.Range(0, spawnPoints.Length);
+            nextIndex = Random.Range(
+                0,
+                spawnPoints.Length
+            );
         }
         while (
             avoidCurrentSpawnPoint &&
-            nextIndex == currentSpawnPointIndex
+            nextIndex ==
+            currentSpawnPointIndex
         );
 
         return nextIndex;
@@ -145,47 +210,70 @@ public class BatteryPickup : MonoBehaviour, IInteractable
 
     private int FindClosestSpawnPointIndex()
     {
-        if (spawnPoints == null || spawnPoints.Length == 0)
+        if (
+            spawnPoints == null ||
+            spawnPoints.Length == 0
+        )
         {
             return -1;
         }
 
         int closestIndex = -1;
-        float closestDistance = float.MaxValue;
+        float closestDistance =
+            float.MaxValue;
 
-        for (int i = 0; i < spawnPoints.Length; i++)
+        for (
+            int i = 0;
+            i < spawnPoints.Length;
+            i++
+        )
         {
             if (spawnPoints[i] == null)
             {
                 continue;
             }
 
-            float distance = Vector3.SqrMagnitude(
-                transform.position - spawnPoints[i].position
-            );
+            float distance =
+                Vector3.SqrMagnitude(
+                    transform.position -
+                    spawnPoints[i].position
+                );
 
-            if (distance < closestDistance)
+            if (
+                distance <
+                closestDistance
+            )
             {
-                closestDistance = distance;
-                closestIndex = i;
+                closestDistance =
+                    distance;
+
+                closestIndex =
+                    i;
             }
         }
 
         return closestIndex;
     }
 
-    private void SetPickupVisible(bool isVisible)
+    private void SetPickupVisible(
+        bool isVisible
+    )
     {
         if (pickupCollider != null)
         {
-            pickupCollider.enabled = isVisible;
+            pickupCollider.enabled =
+                isVisible;
         }
 
-        foreach (Renderer pickupRenderer in pickupRenderers)
+        foreach (
+            Renderer pickupRenderer
+            in pickupRenderers
+        )
         {
             if (pickupRenderer != null)
             {
-                pickupRenderer.enabled = isVisible;
+                pickupRenderer.enabled =
+                    isVisible;
             }
         }
     }
