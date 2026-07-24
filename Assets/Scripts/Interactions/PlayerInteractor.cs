@@ -4,7 +4,8 @@ using UnityEngine.InputSystem;
 public class PlayerInteractor : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private Transform interactionOrigin;
+    [Tooltip("First-person camera. If left empty, Camera.main is used automatically.")]
+    [SerializeField] private Camera playerCamera;
 
     [Header("Interaction")]
     [SerializeField, Min(0f)] private float interactionDistance = 3f;
@@ -13,16 +14,14 @@ public class PlayerInteractor : MonoBehaviour
     [Header("New Input System")]
     [SerializeField] private InputActionReference interactAction;
 
+    // Center of the viewport = where the crosshair sits on screen.
+    private static readonly Vector3 ScreenCenter = new Vector3(0.5f, 0.5f, 0f);
+
     private void Awake()
     {
-        if (interactionOrigin == null)
+        if (playerCamera == null)
         {
-            Camera mainCamera = Camera.main;
-
-            if (mainCamera != null)
-            {
-                interactionOrigin = mainCamera.transform;
-            }
+            playerCamera = Camera.main;
         }
     }
 
@@ -55,22 +54,21 @@ public class PlayerInteractor : MonoBehaviour
 
     private void TryInteract()
     {
-        Debug.Log("E pressed - trying to interact.");
-
-        if (interactionOrigin == null)
+        if (playerCamera == null)
         {
-            Debug.LogError("Interaction Origin is null.");
+            Debug.LogError(
+                "PlayerInteractor has no camera assigned and no Camera.main was found.",
+                this
+            );
             return;
         }
 
-        Ray ray = new Ray(
-            interactionOrigin.position,
-            interactionOrigin.forward
-        );
+        // Ray straight through the crosshair (center of the screen).
+        Ray ray = playerCamera.ViewportPointToRay(ScreenCenter);
 
         Debug.DrawRay(
-            interactionOrigin.position,
-            interactionOrigin.forward * interactionDistance,
+            ray.origin,
+            ray.direction * interactionDistance,
             Color.red,
             2f
         );
@@ -85,23 +83,16 @@ public class PlayerInteractor : MonoBehaviour
 
         if (!hitSomething)
         {
-            Debug.Log("Raycast did not hit an interactable object.");
             return;
         }
-
-        Debug.Log("Raycast hit: " + hit.collider.name);
 
         IInteractable interactable = FindInteractable(hit.collider);
 
         if (interactable == null)
         {
-            Debug.LogError(
-                "The hit object does not contain an IInteractable component."
-            );
             return;
         }
 
-        Debug.Log("Calling Interact.");
         interactable.Interact();
     }
 
@@ -123,15 +114,19 @@ public class PlayerInteractor : MonoBehaviour
 
     private void OnDrawGizmosSelected()
     {
-        if (interactionOrigin == null)
+        Camera cam = playerCamera != null ? playerCamera : Camera.main;
+
+        if (cam == null)
         {
             return;
         }
 
+        Ray ray = cam.ViewportPointToRay(ScreenCenter);
+
+        Gizmos.color = Color.yellow;
         Gizmos.DrawLine(
-            interactionOrigin.position,
-            interactionOrigin.position +
-            interactionOrigin.forward * interactionDistance
+            ray.origin,
+            ray.origin + ray.direction * interactionDistance
         );
     }
 }

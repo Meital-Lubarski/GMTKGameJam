@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using General;
+using UnityEngine;
 using UnityEngine.AI;
 
 namespace Ghost
@@ -36,9 +37,17 @@ namespace Ghost
         // States
         [Header("States")]
         [SerializeField] private float sightRange;
+        [Tooltip("Also acts as the catch radius: staying this close catches the player.")]
         [SerializeField] private float attackRange;
         private bool _playerInSightRange;
         private bool _playerInAttackRange;
+
+        // Catching
+        [Header("Catching")]
+        [Tooltip("How long the player must stay inside attack range to be caught.")]
+        [SerializeField] private float catchTime = 2f;
+        private float _catchTimer;
+        private bool _hasCaughtPlayer;
 
         private void Awake()
         {
@@ -51,6 +60,9 @@ namespace Ghost
 
         private void Update()
         {
+            // Once the player is caught the run is over, so stop all behaviour.
+            if (_hasCaughtPlayer) return;
+
             // Check for sight and attack range
             _playerInSightRange = Physics.CheckSphere(transform.position, sightRange, whatIsPlayer);
             _playerInAttackRange = Physics.CheckSphere(transform.position, attackRange, whatIsPlayer);
@@ -59,7 +71,34 @@ namespace Ghost
             if (_playerInSightRange && !_playerInAttackRange) ChasePlayer();
             if (_playerInAttackRange && _playerInSightRange) AttackPlayer();
 
+            HandleCatch();
             HandleSpeedIncrease();
+        }
+
+        private void HandleCatch()
+        {
+            // Reset the moment the player escapes the catch radius, so only
+            // continuous contact counts toward being caught.
+            if (!_playerInAttackRange)
+            {
+                _catchTimer = 0f;
+                return;
+            }
+
+            _catchTimer += Time.deltaTime;
+
+            if (_catchTimer >= catchTime)
+                CatchPlayer();
+        }
+
+        private void CatchPlayer()
+        {
+            _hasCaughtPlayer = true;
+
+            // Freeze the ghost in place; the listener handles the actual loss/scene.
+            if (agent.isOnNavMesh) agent.ResetPath();
+
+            EventManager.OnPlayerCaught?.Invoke();
         }
 
         private void HandleSpeedIncrease()

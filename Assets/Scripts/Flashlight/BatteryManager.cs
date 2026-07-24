@@ -1,29 +1,27 @@
 using General;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class BatteryManager : MonoBehaviour
 {
     private const int TotalBatteryBars = 4;
 
     [Header("Battery")]
-    [SerializeField, Min(1f)] private float maxCharge = 100f;
+    [Tooltip("How many seconds of flashlight use each of the four bars lasts.")]
+    [SerializeField, Min(0.1f)] private float secondsPerBar = 5f;
     [SerializeField] private bool startWithFullBattery = true;
-
-    [Header("Battery UI")]
-    [Tooltip("Drag the four battery bar Images here from left to right.")]
-    [SerializeField] private Image[] batteryBars =
-        new Image[TotalBatteryBars];
 
     private float currentCharge;
 
     public float CurrentCharge => currentCharge;
-    public float MaxCharge => maxCharge;
+
+    // The battery is measured in seconds of flashlight use:
+    // four bars of secondsPerBar each.
+    public float MaxCharge => secondsPerBar * TotalBatteryBars;
 
     public float ChargeNormalized =>
-        maxCharge <= 0f
+        MaxCharge <= 0f
             ? 0f
-            : currentCharge / maxCharge;
+            : currentCharge / MaxCharge;
 
     public int CurrentBars => CalculateCurrentBars();
     public bool IsEmpty => currentCharge <= 0f;
@@ -31,10 +29,8 @@ public class BatteryManager : MonoBehaviour
     private void Awake()
     {
         currentCharge = startWithFullBattery
-            ? maxCharge
+            ? MaxCharge
             : 0f;
-
-        RefreshBatteryState();
     }
 
     /// <summary>
@@ -57,8 +53,6 @@ public class BatteryManager : MonoBehaviour
             currentCharge - amount
         );
 
-        RefreshBatteryState();
-
         if (previousBars != CurrentBars)
         {
             EventManager.OnBarsChanged?.Invoke(CurrentBars);
@@ -73,8 +67,8 @@ public class BatteryManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Adds a specific amount of charge.
-    /// For example, 25 adds one quarter when maxCharge is 100.
+    /// Adds a specific amount of charge, measured in seconds
+    /// of flashlight use.
     /// </summary>
     public void AddCharge(float amount)
     {
@@ -86,11 +80,9 @@ public class BatteryManager : MonoBehaviour
         int previousBars = CurrentBars;
 
         currentCharge = Mathf.Min(
-            maxCharge,
+            MaxCharge,
             currentCharge + amount
         );
-
-        RefreshBatteryState();
 
         if (previousBars != CurrentBars)
         {
@@ -111,19 +103,14 @@ public class BatteryManager : MonoBehaviour
             return;
         }
 
-        float chargePerBar =
-            maxCharge / TotalBatteryBars;
-
-        AddCharge(chargePerBar * numberOfBars);
+        AddCharge(secondsPerBar * numberOfBars);
     }
 
     public void RefillBattery()
     {
         int previousBars = CurrentBars;
 
-        currentCharge = maxCharge;
-
-        RefreshBatteryState();
+        currentCharge = MaxCharge;
 
         if (previousBars != CurrentBars)
         {
@@ -162,7 +149,7 @@ public class BatteryManager : MonoBehaviour
         }
 
         float normalizedCharge =
-            currentCharge / maxCharge;
+            currentCharge / MaxCharge;
 
         if (normalizedCharge > 0.75f)
         {
@@ -182,29 +169,4 @@ public class BatteryManager : MonoBehaviour
         return 1;
     }
 
-    private void RefreshBatteryState()
-    {
-        UpdateBatteryUI();
-    }
-
-    private void UpdateBatteryUI()
-    {
-        if (batteryBars == null)
-        {
-            return;
-        }
-
-        int activeBars = CurrentBars;
-
-        for (int i = 0; i < batteryBars.Length; i++)
-        {
-            if (batteryBars[i] == null)
-            {
-                continue;
-            }
-
-            batteryBars[i].enabled =
-                i < activeBars;
-        }
-    }
 }
