@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class FlashlightController : MonoBehaviour
 {
@@ -7,6 +8,13 @@ public class FlashlightController : MonoBehaviour
     [SerializeField] private Light flashlight;
     [SerializeField] private Transform flashlightOrigin;
     [SerializeField] private Transform ghost;
+
+    [Header("New Input System")]
+    [Tooltip("The Flashlight action from the Player map. Toggles the light.")]
+    [SerializeField] private InputActionReference flashlightAction;
+
+    [Tooltip("Should the flashlight already be lit when the run starts?")]
+    [SerializeField] private bool startTurnedOn = true;
 
     [Header("Ghost Distance")]
     [Tooltip("At or below this distance, the flashlight uses strong mode.")]
@@ -20,12 +28,14 @@ public class FlashlightController : MonoBehaviour
     [SerializeField, Min(0f)]
     private float strongLightIntensity = 8f;
 
-    [Header("Battery Drain Per Second")]
+    [Header("Battery Drain Multiplier")]
+    [Tooltip("1 means each bar lasts exactly its Seconds Per Bar value.")]
     [SerializeField, Min(0f)]
-    private float weakDrainPerSecond = 0.5f;
+    private float weakDrainMultiplier = 1f;
 
+    [Tooltip("Drain while the ghost is close. 2 empties the battery twice as fast.")]
     [SerializeField, Min(0f)]
-    private float strongDrainPerSecond = 2f;
+    private float strongDrainMultiplier = 2f;
 
     [Header("Ghost Detection")]
     [Tooltip("Put the Ghost layer here.")]
@@ -42,6 +52,7 @@ public class FlashlightController : MonoBehaviour
 
     private IFlashlightTarget currentlyIlluminatedTarget;
     private bool ghostIsClose;
+    private bool isTurnedOn;
 
     /*
      * מונע קריאה ל-Stun בכל פריים.
@@ -73,9 +84,71 @@ public class FlashlightController : MonoBehaviour
         }
     }
 
+    private void OnEnable()
+    {
+        if (flashlightAction != null)
+        {
+            flashlightAction.action.performed += OnFlashlightPerformed;
+            flashlightAction.action.Enable();
+        }
+
+        // Never start lit on a dead battery.
+        SetFlashlightOn(
+            startTurnedOn &&
+            batteryManager != null &&
+            !batteryManager.IsEmpty
+        );
+    }
+
     private void OnDisable()
     {
+        if (flashlightAction != null)
+        {
+            flashlightAction.action.performed -= OnFlashlightPerformed;
+            flashlightAction.action.Disable();
+        }
+
         ClearIlluminatedTarget();
+    }
+
+    private void OnFlashlightPerformed(InputAction.CallbackContext context)
+    {
+        ToggleFlashlight();
+    }
+
+    private void ToggleFlashlight()
+    {
+        if (flashlight == null)
+        {
+            return;
+        }
+
+        // An empty battery cannot be switched back on until it is recharged.
+        if (
+            !isTurnedOn &&
+            (batteryManager == null || batteryManager.IsEmpty)
+        )
+        {
+            return;
+        }
+
+        SetFlashlightOn(!isTurnedOn);
+    }
+
+    private void SetFlashlightOn(bool isOn)
+    {
+        isTurnedOn = isOn;
+
+        if (flashlight != null)
+        {
+            flashlight.enabled = isOn;
+        }
+
+        // A switched off flashlight cannot keep revealing the ghost.
+        if (!isOn)
+        {
+            ClearIlluminatedTarget();
+        }
     }
 
     private void Update()
@@ -88,14 +161,17 @@ public class FlashlightController : MonoBehaviour
             return;
         }
 
-        if (batteryManager.IsEmpty)
+        // While switched off the battery is preserved and nothing is revealed.
+        if (!isTurnedOn)
         {
-            flashlight.enabled = false;
-            ClearIlluminatedTarget();
             return;
         }
 
-        flashlight.enabled = true;
+        if (batteryManager.IsEmpty)
+        {
+            SetFlashlightOn(false);
+            return;
+        }
 
         UpdateGhostDistanceState();
         UpdateFlashlightIntensity();
@@ -134,13 +210,13 @@ public class FlashlightController : MonoBehaviour
 
     private void DrainBattery()
     {
-        float drainRate =
+        float drainMultiplier =
             ghostIsClose
-                ? strongDrainPerSecond
-                : weakDrainPerSecond;
+                ? strongDrainMultiplier
+                : weakDrainMultiplier;
 
         batteryManager.Drain(
-            drainRate * Time.deltaTime
+            drainMultiplier * Time.deltaTime
         );
     }
 
