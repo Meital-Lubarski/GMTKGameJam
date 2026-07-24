@@ -159,6 +159,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Classrom
       objectReference: {fileID: 0}
+    - target: {fileID: 4694754283054701511, guid: d8ceeb24f33826945a28d2d728683d3d, type: 3}
+      propertyPath: m_NavMeshData
+      value: 
+      objectReference: {fileID: 23800000, guid: 195d8e57bd6bc054ea083080eb74c52f, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
