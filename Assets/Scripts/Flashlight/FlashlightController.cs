@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public class FlashlightController : MonoBehaviour
 {
@@ -11,31 +10,44 @@ public class FlashlightController : MonoBehaviour
 
     [Header("Ghost Distance")]
     [Tooltip("At or below this distance, the flashlight uses strong mode.")]
-    [SerializeField, Min(0f)] private float ghostCloseDistance = 8f;
+    [SerializeField, Min(0f)]
+    private float ghostCloseDistance = 8f;
 
     [Header("Light Intensity")]
-    [SerializeField, Min(0f)] private float weakLightIntensity = 2f;
-    [SerializeField, Min(0f)] private float strongLightIntensity = 8f;
+    [SerializeField, Min(0f)]
+    private float weakLightIntensity = 2f;
+
+    [SerializeField, Min(0f)]
+    private float strongLightIntensity = 8f;
 
     [Header("Battery Drain Per Second")]
-    [SerializeField, Min(0f)] private float weakDrainPerSecond = 0.5f;
-    [SerializeField, Min(0f)] private float strongDrainPerSecond = 2f;
+    [SerializeField, Min(0f)]
+    private float weakDrainPerSecond = 0.5f;
+
+    [SerializeField, Min(0f)]
+    private float strongDrainPerSecond = 2f;
 
     [Header("Ghost Detection")]
     [Tooltip("Put the Ghost layer here.")]
-    [SerializeField] private LayerMask ghostLayer;
+    [SerializeField]
+    private LayerMask ghostLayer;
 
     [Tooltip("Maximum distance at which the flashlight can reveal the ghost.")]
-    [SerializeField, Min(0f)] private float detectionDistance = 30f;
+    [SerializeField, Min(0f)]
+    private float detectionDistance = 30f;
 
     [Tooltip("Makes detection wider than a single thin ray.")]
-    [SerializeField, Min(0f)] private float detectionRadius = 0.4f;
-
-    [Header("Stun Input - New Input System")]
-    [SerializeField] private InputActionReference stunAction;
+    [SerializeField, Min(0f)]
+    private float detectionRadius = 0.4f;
 
     private IFlashlightTarget currentlyIlluminatedTarget;
     private bool ghostIsClose;
+
+    /*
+     * מונע קריאה ל-Stun בכל פריים.
+     * הסטאן מופעל פעם אחת כשקרן הפנס מתחילה לפגוע ברוח.
+     */
+    private bool stunAppliedForCurrentIllumination;
 
     private void Awake()
     {
@@ -43,31 +55,35 @@ public class FlashlightController : MonoBehaviour
         {
             flashlightOrigin = transform;
         }
-    }
 
-    private void OnEnable()
-    {
-        if (stunAction != null)
+        if (batteryManager == null)
         {
-            stunAction.action.performed += OnStunPerformed;
-            stunAction.action.Enable();
+            Debug.LogError(
+                "FlashlightController has no BatteryManager assigned.",
+                this
+            );
+        }
+
+        if (flashlight == null)
+        {
+            Debug.LogError(
+                "FlashlightController has no Light assigned.",
+                this
+            );
         }
     }
 
     private void OnDisable()
     {
-        if (stunAction != null)
-        {
-            stunAction.action.performed -= OnStunPerformed;
-            stunAction.action.Disable();
-        }
-
         ClearIlluminatedTarget();
     }
 
     private void Update()
     {
-        if (batteryManager == null || flashlight == null)
+        if (
+            batteryManager == null ||
+            flashlight == null
+        )
         {
             return;
         }
@@ -89,38 +105,52 @@ public class FlashlightController : MonoBehaviour
 
     private void UpdateGhostDistanceState()
     {
-        if (ghost == null)
+        if (
+            ghost == null ||
+            flashlightOrigin == null
+        )
         {
             ghostIsClose = false;
             return;
         }
 
-        float distanceToGhost = Vector3.Distance(
-            flashlightOrigin.position,
-            ghost.position
-        );
+        float distanceToGhost =
+            Vector3.Distance(
+                flashlightOrigin.position,
+                ghost.position
+            );
 
-        ghostIsClose = distanceToGhost <= ghostCloseDistance;
+        ghostIsClose =
+            distanceToGhost <= ghostCloseDistance;
     }
 
     private void UpdateFlashlightIntensity()
     {
-        flashlight.intensity = ghostIsClose
-            ? strongLightIntensity
-            : weakLightIntensity;
+        flashlight.intensity =
+            ghostIsClose
+                ? strongLightIntensity
+                : weakLightIntensity;
     }
 
     private void DrainBattery()
     {
-        float drainRate = ghostIsClose
-            ? strongDrainPerSecond
-            : weakDrainPerSecond;
+        float drainRate =
+            ghostIsClose
+                ? strongDrainPerSecond
+                : weakDrainPerSecond;
 
-        batteryManager.Drain(drainRate * Time.deltaTime);
+        batteryManager.Drain(
+            drainRate * Time.deltaTime
+        );
     }
 
     private void DetectGhostInFlashlight()
     {
+        if (flashlightOrigin == null)
+        {
+            return;
+        }
+
         Ray ray = new Ray(
             flashlightOrigin.position,
             flashlightOrigin.forward
@@ -141,7 +171,8 @@ public class FlashlightController : MonoBehaviour
             return;
         }
 
-        IFlashlightTarget target = FindFlashlightTarget(hit.collider);
+        IFlashlightTarget target =
+            FindFlashlightTarget(hit.collider);
 
         if (target == null)
         {
@@ -149,6 +180,10 @@ public class FlashlightController : MonoBehaviour
             return;
         }
 
+        /*
+         * הפנס עדיין על אותה רוח.
+         * לא מפעילים שוב את הסטאן ולא מאפסים את הטיימר.
+         */
         if (currentlyIlluminatedTarget == target)
         {
             return;
@@ -157,17 +192,68 @@ public class FlashlightController : MonoBehaviour
         ClearIlluminatedTarget();
 
         currentlyIlluminatedTarget = target;
+        stunAppliedForCurrentIllumination = false;
+
+        /*
+         * הרוח נראית כל עוד הפנס עליה.
+         */
         currentlyIlluminatedTarget.SetIlluminated(true);
+
+        /*
+         * מפעילים סטאן פעם אחת בלבד.
+         */
+        ApplyStunToCurrentTarget();
     }
 
-    private IFlashlightTarget FindFlashlightTarget(Collider hitCollider)
+    private void ApplyStunToCurrentTarget()
+    {
+        if (stunAppliedForCurrentIllumination)
+        {
+            return;
+        }
+
+        if (currentlyIlluminatedTarget == null)
+        {
+            return;
+        }
+
+        if (
+            batteryManager == null ||
+            batteryManager.IsEmpty
+        )
+        {
+            return;
+        }
+
+        float stunDuration =
+            batteryManager.GetStunDuration();
+
+        if (stunDuration <= 0f)
+        {
+            return;
+        }
+
+        currentlyIlluminatedTarget.Stun(
+            stunDuration
+        );
+
+        stunAppliedForCurrentIllumination = true;
+    }
+
+    private IFlashlightTarget FindFlashlightTarget(
+        Collider hitCollider
+    )
     {
         MonoBehaviour[] behaviours =
             hitCollider.GetComponentsInParent<MonoBehaviour>();
 
-        foreach (MonoBehaviour behaviour in behaviours)
+        foreach (
+            MonoBehaviour behaviour in behaviours
+        )
         {
-            if (behaviour is IFlashlightTarget target)
+            if (
+                behaviour is IFlashlightTarget target
+            )
             {
                 return target;
             }
@@ -178,45 +264,27 @@ public class FlashlightController : MonoBehaviour
 
     private void ClearIlluminatedTarget()
     {
-        if (currentlyIlluminatedTarget == null)
+        if (currentlyIlluminatedTarget != null)
         {
-            return;
+            currentlyIlluminatedTarget.SetIlluminated(
+                false
+            );
         }
 
-        currentlyIlluminatedTarget.SetIlluminated(false);
         currentlyIlluminatedTarget = null;
-    }
-
-    private void OnStunPerformed(InputAction.CallbackContext context)
-    {
-        if (batteryManager == null || batteryManager.IsEmpty)
-        {
-            return;
-        }
-
-        if (currentlyIlluminatedTarget == null)
-        {
-            return;
-        }
-
-        float stunDuration = batteryManager.GetStunDuration();
-
-        if (stunDuration <= 0f)
-        {
-            return;
-        }
-
-        currentlyIlluminatedTarget.Stun(stunDuration);
+        stunAppliedForCurrentIllumination = false;
     }
 
     private void OnDrawGizmosSelected()
     {
-        Transform origin = flashlightOrigin != null
-            ? flashlightOrigin
-            : transform;
+        Transform origin =
+            flashlightOrigin != null
+                ? flashlightOrigin
+                : transform;
 
         Gizmos.DrawWireSphere(
-            origin.position + origin.forward * detectionDistance,
+            origin.position +
+            origin.forward * detectionDistance,
             detectionRadius
         );
     }
