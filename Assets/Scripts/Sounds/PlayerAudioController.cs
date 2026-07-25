@@ -1,15 +1,9 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class PlayerAudioController : MonoBehaviour
 {
-    private enum BreathingState
-    {
-        None,
-        Walking,
-        Running
-    }
-
     public static PlayerAudioController Instance
     {
         get;
@@ -23,25 +17,15 @@ public class PlayerAudioController : MonoBehaviour
     [SerializeField]
     private InputActionReference sprintAction;
 
-    [Header("Flashlight Reference")]
+    [Header("Walking Footsteps")]
     [SerializeField]
-    private Light flashlight;
-
-    [Header("Footsteps")]
-    [SerializeField]
-    private AudioClip[] footstepClips;
+    private AudioClip[] walkingFootstepClips;
 
     [SerializeField]
     private float minimumMovementSpeed = 0.15f;
 
     [SerializeField]
-    private float runningSpeed = 5f;
-
-    [SerializeField]
-    private float walkingStepInterval = 0.55f;
-
-    [SerializeField]
-    private float runningStepInterval = 0.32f;
+    private float stepInterval = 0.55f;
 
     [SerializeField, Range(0f, 1f)]
     private float footstepVolume = 0.7f;
@@ -49,42 +33,28 @@ public class PlayerAudioController : MonoBehaviour
     [SerializeField, Range(0f, 0.3f)]
     private float footstepPitchVariation = 0.05f;
 
-    [Header("Breathing")]
+    [Header("Running Panting")]
     [SerializeField]
-    private AudioClip walkingBreathingLoop;
-
-    [SerializeField]
-    private AudioClip runningBreathingLoop;
-
-    [SerializeField]
-    private AudioClip exhaustedClip;
+    private AudioClip runningPantingLoop;
 
     [SerializeField, Range(0f, 1f)]
-    private float walkingBreathingVolume = 0.2f;
+    private float runningPantingVolume = 0.5f;
 
-    [SerializeField, Range(0f, 1f)]
-    private float runningBreathingVolume = 0.5f;
-
-    [SerializeField, Range(0f, 1f)]
-    private float exhaustedVolume = 0.8f;
-
-    [Header("Flashlight Sounds")]
+    [Header("Low Stamina")]
     [SerializeField]
-    private AudioClip flashlightOnClip;
-
-    [SerializeField]
-    private AudioClip flashlightOffClip;
-
-    [SerializeField]
-    private AudioClip flashlightStaticLoop;
+    private AudioClip lowStaminaLoopClip;
 
     [SerializeField, Range(0f, 1f)]
-    private float flashlightToggleVolume = 0.8f;
+    private float lowStaminaVolume = 0.7f;
 
-    [SerializeField, Range(0f, 1f)]
-    private float flashlightStaticVolume = 0.25f;
+    [Tooltip(
+        "The Low Stamina sound starts when stamina " +
+        "falls below this percentage."
+    )]
+    [SerializeField, Range(0.01f, 1f)]
+    private float lowStaminaThreshold = 0.25f;
 
-    [Header("Death Sounds")]
+    [Header("Choking And Death")]
     [SerializeField]
     private AudioClip playerChokingClip;
 
@@ -97,49 +67,41 @@ public class PlayerAudioController : MonoBehaviour
     [SerializeField, Range(0f, 1f)]
     private float deathVolume = 1f;
 
-    private AudioSourcePoolable breathingLoop;
-    private AudioSourcePoolable flashlightLoop;
+    [SerializeField]
+    private float deathSoundDelay = 1.5f;
 
-    private BreathingState currentBreathingState;
+    private float stepTimer;
+    private int previousClipIndex = -1;
 
-    private float footstepTimer;
-    private bool previousFlashlightState;
+    private AudioSourcePoolable pantingLoop;
+    private AudioSourcePoolable lowStaminaLoop;
+
+    private Coroutine chokingAndDeathCoroutine;
+
+    private bool isLowStamina;
+    private bool isDead;
 
     private void Awake()
     {
         Instance = this;
     }
 
-    private void Start()
-    {
-        previousFlashlightState = IsFlashlightOn();
-
-        if (previousFlashlightState)
-        {
-            StartFlashlightStatic();
-        }
-    }
-
     private void Update()
     {
-        UpdateMovementAudio();
-        UpdateFlashlightAudio();
-    }
-
-    private void UpdateMovementAudio()
-    {
-        if (characterController == null)
+        if (characterController == null ||
+            isDead)
         {
             return;
         }
 
-        Vector3 velocity = characterController.velocity;
-        velocity.y = 0f;
+        Vector3 horizontalVelocity =
+            characterController.velocity;
 
-        float speed = velocity.magnitude;
+        horizontalVelocity.y = 0f;
 
         bool isMoving =
-            speed >= minimumMovementSpeed;
+            horizontalVelocity.magnitude >=
+            minimumMovementSpeed;
 
         bool isGrounded =
             characterController.isGrounded;
@@ -151,194 +113,131 @@ public class PlayerAudioController : MonoBehaviour
 
         bool isRunning =
             isMoving &&
-            (sprintPressed || speed >= runningSpeed);
+            isGrounded &&
+            sprintPressed;
 
         UpdateFootsteps(
             isMoving,
-            isGrounded,
-            isRunning
+            isGrounded
         );
 
-        UpdateBreathing(
-            isMoving,
-            isRunning
+        /*
+         * Low Stamina overrides the regular
+         * running panting sound.
+         */
+        UpdateRunningPanting(
+            isRunning && !isLowStamina
         );
     }
 
     private void UpdateFootsteps(
         bool isMoving,
-        bool isGrounded,
-        bool isRunning)
+        bool isGrounded)
     {
         if (!isMoving || !isGrounded)
         {
-            footstepTimer = 0f;
+            stepTimer = 0f;
             return;
         }
 
-        footstepTimer -= Time.deltaTime;
+        stepTimer -= Time.deltaTime;
 
-        if (footstepTimer > 0f)
+        if (stepTimer > 0f)
         {
             return;
         }
 
-        PlayFootstep();
+        PlayRandomFootstep();
 
-        footstepTimer = isRunning
-            ? runningStepInterval
-            : walkingStepInterval;
+        stepTimer = stepInterval;
     }
 
-    private void PlayFootstep()
+    private void PlayRandomFootstep()
     {
-        AudioClip clip = GetRandomClip(footstepClips);
-
-        if (clip == null ||
+        if (walkingFootstepClips == null ||
+            walkingFootstepClips.Length == 0 ||
             SoundManager.Instance == null)
         {
             return;
         }
 
-        float pitch = Random.Range(
+        int clipIndex = GetRandomClipIndex();
+
+        AudioClip selectedClip =
+            walkingFootstepClips[clipIndex];
+
+        if (selectedClip == null)
+        {
+            return;
+        }
+
+        previousClipIndex = clipIndex;
+
+        float randomPitch = Random.Range(
             1f - footstepPitchVariation,
             1f + footstepPitchVariation
         );
 
         SoundManager.Instance.PlaySfx(
-            clip,
+            selectedClip,
             footstepVolume,
-            pitch
+            randomPitch
         );
     }
 
-    private void UpdateBreathing(
-        bool isMoving,
-        bool isRunning)
+    private int GetRandomClipIndex()
     {
-        BreathingState wantedState;
-
-        if (!isMoving)
+        if (walkingFootstepClips.Length == 1)
         {
-            wantedState = BreathingState.None;
+            return 0;
         }
-        else if (isRunning)
+
+        int randomIndex;
+
+        do
         {
-            wantedState = BreathingState.Running;
+            randomIndex = Random.Range(
+                0,
+                walkingFootstepClips.Length
+            );
+        }
+        while (randomIndex == previousClipIndex);
+
+        return randomIndex;
+    }
+
+    private void UpdateRunningPanting(
+        bool shouldPant)
+    {
+        if (shouldPant)
+        {
+            StartPanting();
         }
         else
         {
-            wantedState = BreathingState.Walking;
-        }
-
-        if (wantedState == currentBreathingState)
-        {
-            return;
-        }
-
-        ChangeBreathingState(wantedState);
-    }
-
-    private void ChangeBreathingState(
-        BreathingState newState)
-    {
-        StopBreathingLoop();
-
-        currentBreathingState = newState;
-
-        if (SoundManager.Instance == null)
-        {
-            return;
-        }
-
-        switch (newState)
-        {
-            case BreathingState.Walking:
-                if (walkingBreathingLoop != null)
-                {
-                    breathingLoop =
-                        SoundManager.Instance.PlayLoop(
-                            walkingBreathingLoop,
-                            walkingBreathingVolume
-                        );
-                }
-
-                break;
-
-            case BreathingState.Running:
-                if (runningBreathingLoop != null)
-                {
-                    breathingLoop =
-                        SoundManager.Instance.PlayLoop(
-                            runningBreathingLoop,
-                            runningBreathingVolume
-                        );
-                }
-
-                break;
+            StopPanting();
         }
     }
 
-    private void UpdateFlashlightAudio()
+    private void StartPanting()
     {
-        bool currentFlashlightState =
-            IsFlashlightOn();
-
-        if (currentFlashlightState ==
-            previousFlashlightState)
-        {
-            return;
-        }
-
-        if (currentFlashlightState)
-        {
-            PlayPlayerSound(
-                flashlightOnClip,
-                flashlightToggleVolume
-            );
-
-            StartFlashlightStatic();
-        }
-        else
-        {
-            PlayPlayerSound(
-                flashlightOffClip,
-                flashlightToggleVolume
-            );
-
-            StopFlashlightStatic();
-        }
-
-        previousFlashlightState =
-            currentFlashlightState;
-    }
-
-    private bool IsFlashlightOn()
-    {
-        return flashlight != null &&
-               flashlight.enabled &&
-               flashlight.intensity > 0.01f;
-    }
-
-    private void StartFlashlightStatic()
-    {
-        if (flashlightLoop != null ||
-            flashlightStaticLoop == null ||
+        if (pantingLoop != null ||
+            runningPantingLoop == null ||
             SoundManager.Instance == null)
         {
             return;
         }
 
-        flashlightLoop =
+        pantingLoop =
             SoundManager.Instance.PlayLoop(
-                flashlightStaticLoop,
-                flashlightStaticVolume
+                runningPantingLoop,
+                runningPantingVolume
             );
     }
 
-    private void StopFlashlightStatic()
+    private void StopPanting()
     {
-        if (flashlightLoop == null)
+        if (pantingLoop == null)
         {
             return;
         }
@@ -346,24 +245,103 @@ public class PlayerAudioController : MonoBehaviour
         if (SoundManager.Instance != null)
         {
             SoundManager.Instance.StopLoop(
-                flashlightLoop
+                pantingLoop
             );
         }
 
-        flashlightLoop = null;
+        pantingLoop = null;
     }
 
-    public void PlayExhausted()
+    public void UpdateStaminaAudio(
+        float currentStamina,
+        float maximumStamina)
     {
-        PlayPlayerSound(
-            exhaustedClip,
-            exhaustedVolume
+        if (maximumStamina <= 0f)
+        {
+            SetLowStamina(false);
+            return;
+        }
+
+        float normalizedStamina =
+            Mathf.Clamp01(
+                currentStamina / maximumStamina
+            );
+
+        UpdateStaminaNormalized(
+            normalizedStamina
         );
+    }
+
+    public void UpdateStaminaNormalized(
+        float normalizedStamina)
+    {
+        normalizedStamina =
+            Mathf.Clamp01(normalizedStamina);
+
+        bool shouldBeLow =
+            !isDead &&
+            normalizedStamina <= lowStaminaThreshold;
+
+        SetLowStamina(shouldBeLow);
+    }
+
+    public void SetLowStamina(
+        bool lowStamina)
+    {
+        if (isLowStamina == lowStamina)
+        {
+            return;
+        }
+
+        isLowStamina = lowStamina;
+
+        if (isLowStamina)
+        {
+            StopPanting();
+            StartLowStaminaSound();
+        }
+        else
+        {
+            StopLowStaminaSound();
+        }
+    }
+
+    private void StartLowStaminaSound()
+    {
+        if (lowStaminaLoop != null ||
+            lowStaminaLoopClip == null ||
+            SoundManager.Instance == null)
+        {
+            return;
+        }
+
+        lowStaminaLoop =
+            SoundManager.Instance.PlayLoop(
+                lowStaminaLoopClip,
+                lowStaminaVolume
+            );
+    }
+
+    private void StopLowStaminaSound()
+    {
+        if (lowStaminaLoop == null)
+        {
+            return;
+        }
+
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.StopLoop(
+                lowStaminaLoop
+            );
+        }
+
+        lowStaminaLoop = null;
     }
 
     public void PlayPlayerChoking()
     {
-        StopBreathingLoop();
+        StopMovementLoops();
 
         PlayPlayerSound(
             playerChokingClip,
@@ -373,13 +351,58 @@ public class PlayerAudioController : MonoBehaviour
 
     public void PlayPlayerDeath()
     {
-        StopBreathingLoop();
-        StopFlashlightStatic();
+        isDead = true;
+
+        StopMovementLoops();
 
         PlayPlayerSound(
             playerDeathClip,
             deathVolume
         );
+    }
+
+    public void PlayChokingAndDeath()
+    {
+        if (chokingAndDeathCoroutine != null)
+        {
+            return;
+        }
+
+        chokingAndDeathCoroutine =
+            StartCoroutine(
+                ChokingAndDeathRoutine()
+            );
+    }
+
+    private IEnumerator ChokingAndDeathRoutine()
+    {
+        isDead = true;
+
+        StopMovementLoops();
+
+        PlayPlayerSound(
+            playerChokingClip,
+            chokingVolume
+        );
+
+        yield return new WaitForSeconds(
+            Mathf.Max(0f, deathSoundDelay)
+        );
+
+        PlayPlayerSound(
+            playerDeathClip,
+            deathVolume
+        );
+
+        chokingAndDeathCoroutine = null;
+    }
+
+    private void StopMovementLoops()
+    {
+        StopPanting();
+        StopLowStaminaSound();
+
+        isLowStamina = false;
     }
 
     private void PlayPlayerSound(
@@ -398,40 +421,9 @@ public class PlayerAudioController : MonoBehaviour
         );
     }
 
-    private void StopBreathingLoop()
-    {
-        if (breathingLoop == null)
-        {
-            return;
-        }
-
-        if (SoundManager.Instance != null)
-        {
-            SoundManager.Instance.StopLoop(
-                breathingLoop
-            );
-        }
-
-        breathingLoop = null;
-    }
-
-    private AudioClip GetRandomClip(
-        AudioClip[] clips)
-    {
-        if (clips == null || clips.Length == 0)
-        {
-            return null;
-        }
-
-        return clips[
-            Random.Range(0, clips.Length)
-        ];
-    }
-
     private void OnDisable()
     {
-        StopBreathingLoop();
-        StopFlashlightStatic();
+        StopMovementLoops();
     }
 
     private void OnDestroy()

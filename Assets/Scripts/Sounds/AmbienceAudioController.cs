@@ -4,7 +4,6 @@ using UnityEngine;
 public class AmbienceAudioController : MonoBehaviour
 {
     [Header("Gameplay Ambience")]
-    [SerializeField] private AudioClip hallwayAmbienceClip;
     [SerializeField] private AudioClip backgroundStaticClip;
 
     [Header("Clock")]
@@ -15,9 +14,6 @@ public class AmbienceAudioController : MonoBehaviour
     [SerializeField] private AudioClip endScreenAmbienceClip;
 
     [Header("Volumes")]
-    [SerializeField, Range(0f, 1f)]
-    private float hallwayVolume = 0.5f;
-
     [SerializeField, Range(0f, 1f)]
     private float staticVolume = 0.15f;
 
@@ -31,7 +27,6 @@ public class AmbienceAudioController : MonoBehaviour
     [SerializeField] private bool playAmbienceOnStart = true;
     [SerializeField] private bool playClockOnStart = true;
 
-    private AudioSourcePoolable hallwayLoop;
     private AudioSourcePoolable staticLoop;
     private AudioSourcePoolable endScreenLoop;
 
@@ -55,12 +50,6 @@ public class AmbienceAudioController : MonoBehaviour
         StopEndScreenAmbience();
 
         StartLoopIfNeeded(
-            ref hallwayLoop,
-            hallwayAmbienceClip,
-            hallwayVolume
-        );
-
-        StartLoopIfNeeded(
             ref staticLoop,
             backgroundStaticClip,
             staticVolume
@@ -69,7 +58,6 @@ public class AmbienceAudioController : MonoBehaviour
 
     public void StopGameplayAmbience()
     {
-        StopLoop(ref hallwayLoop);
         StopLoop(ref staticLoop);
     }
 
