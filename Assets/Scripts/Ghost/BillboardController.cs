@@ -32,12 +32,21 @@ public class BillboardController : MonoBehaviour
         // Safety check to ensure we have a camera reference
         if (_mainCameraTransform == null) return;
 
-        // Calculate the direction opposite to the camera's forward vector
-        // This ensures standard Unity sprites face the camera perfectly
-        Vector3 directionToFace = -_mainCameraTransform.forward;
-        
+        /*
+         * A sprite is drawn on its own XY plane and reads correctly when its
+         * forward runs the same way the camera looks, not back towards it.
+         * Turning it the other way shows its back, and because the material
+         * draws both sides it does not disappear: it comes back mirrored,
+         * which only becomes obvious once there is text on it.
+         */
+        Vector3 directionToFace = _mainCameraTransform.forward;
+
         // Cylindrical billboarding: Ignore vertical tilt
         directionToFace.y = 0f;
+
+        // Looking straight down or up leaves no direction to turn towards.
+        if (directionToFace.sqrMagnitude < 0.0001f) return;
+
         characterTransform.rotation = Quaternion.LookRotation(directionToFace);
     }
 }

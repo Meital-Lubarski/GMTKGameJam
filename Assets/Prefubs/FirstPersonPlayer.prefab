@@ -322,7 +322,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6254440264614894930, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
       propertyPath: secondsPerBar
-      value: 4
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 7175221077158699519, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
       propertyPath: playerCamera

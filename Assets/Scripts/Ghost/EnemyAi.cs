@@ -1,4 +1,5 @@
-﻿using General;
+﻿using System.Collections.Generic;
+using General;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -75,15 +76,31 @@ namespace Ghost
         private float _pendingStunDelay;
         private float _pendingStunDuration;
 
-        private bool IsStunned => _stunTimer > 0f;
+        // Whether the flashlight beam is currently on her.
+        private bool _isIlluminated;
+
+        public bool IsStunned => _stunTimer > 0f;
         private bool HasPendingStun => _pendingStunDuration > 0f;
+
+        /// <summary>
+        /// How much of the stun is left, in seconds, and zero when she is not
+        /// stunned. Read by anything that shows the stun to the player, so what
+        /// is on screen cannot drift away from the stun itself.
+        /// </summary>
+        public float StunTimeRemaining => Mathf.Max(0f, _stunTimer);
+
+        /// <summary>
+        /// Whether the flashlight is on her, and so whether she is being drawn
+        /// at all. Anything hanging off her has to come and go with it.
+        /// </summary>
+        public bool IsIlluminated => _isIlluminated;
 
         private void Awake()
         {
             if (agent == null) agent = GetComponent<NavMeshAgent>();
 
             if (visualRenderers == null || visualRenderers.Length == 0)
-                visualRenderers = GetComponentsInChildren<Renderer>(true);
+                visualRenderers = CollectOwnRenderers();
 
             agent.speed = initialSpeed;
             _walkPointSet = false;
@@ -220,7 +237,30 @@ namespace Ghost
              */
             if (_hasCaughtPlayer) return;
 
+            _isIlluminated = isIlluminated;
+
             SetVisualsVisible(isIlluminated);
+        }
+
+        /// <summary>
+        /// Every renderer under the ghost except the ones the stun indicator
+        /// owns. Those appear on their own terms, so the flashlight toggle must
+        /// not drag them along with the rest of her.
+        /// </summary>
+        private Renderer[] CollectOwnRenderers()
+        {
+            Renderer[] allRenderers = GetComponentsInChildren<Renderer>(true);
+            List<Renderer> ownRenderers = new List<Renderer>(allRenderers.Length);
+
+            foreach (Renderer candidate in allRenderers)
+            {
+                if (candidate.GetComponentInParent<GhostStunIndicator>(true) != null)
+                    continue;
+
+                ownRenderers.Add(candidate);
+            }
+
+            return ownRenderers.ToArray();
         }
 
         private void SetVisualsVisible(bool isVisible)
@@ -244,12 +284,13 @@ namespace Ghost
         {
             if (duration <= 0f || _hasCaughtPlayer) return;
 
-            // Already frozen, so only make sure the longer stun wins.
-            if (IsStunned)
-            {
-                _stunTimer = Mathf.Max(_stunTimer, duration);
-                return;
-            }
+            /*
+             * Already frozen. A stun cannot be stacked on top of one that is
+             * running, nor refresh it: she has to come out of it first. The
+             * beam can never hold her still indefinitely, so every stun costs
+             * the player the walk back into range.
+             */
+            if (IsStunned) return;
 
             /*
              * Start the delay only for a fresh stun. Being hit again while the
