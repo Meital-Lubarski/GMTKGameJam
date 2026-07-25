@@ -807,8 +807,31 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PauseMenuController
   pausePanel: {fileID: 2999425346594668262}
   tutorialPanel: {fileID: 3872410444382027801}
-  playerController: {fileID: 0}
-  playerInputs: {fileID: 0}
+  pauseAction:
+    m_Name: Pause
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 97ca93ca-3386-49a8-a789-3128ee85fb8e
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: fd193a28-de48-4027-9d0f-66efdb12ab73
+      m_Path: <Keyboard>/escape
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Pause
+      m_Flags: 0
+    - m_Name: 
+      m_Id: c5759ee2-e1f7-4d81-9013-42f7028d2bb4
+      m_Path: <Keyboard>/p
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Pause
+      m_Flags: 0
+    m_Flags: 0
 --- !u!1 &3133682446067887963
 GameObject:
   m_ObjectHideFlags: 0
@@ -854,7 +877,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameOverUIController
   gameOverPanel: {fileID: 7873236810647419860}
-  survivedTimeText: {fileID: 0}
+  survivedTimeText: {fileID: 6084050882059989013}
   survivedTimeFormat: 'TIME: {0}'
   showDelay: 0.6
 --- !u!1 &3724026462089616648
