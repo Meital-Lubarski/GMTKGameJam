@@ -85,7 +85,7 @@ namespace Ghost
             _walkPointSet = false;
 
             // The ghost stays unseen until the flashlight beam finds her.
-            SetIlluminated(false);
+            SetVisualsVisible(false);
         }
 
         private void Update()
@@ -151,6 +151,13 @@ namespace Ghost
             // Freeze the ghost in place; the listener handles the actual loss/scene.
             if (agent.isOnNavMesh) agent.ResetPath();
 
+            /*
+             * The player has to see who caught him, with the flashlight on or
+             * off, and see her from the front rather than edge on.
+             */
+            SetVisualsVisible(true);
+            FacePlayer();
+
             EventManager.OnPlayerCaught?.Invoke();
         }
 
@@ -161,12 +168,23 @@ namespace Ghost
         /// </summary>
         public void SetIlluminated(bool isIlluminated)
         {
+            /*
+             * Once she has caught the player she stays on screen, so the
+             * flashlight can no longer hide her by looking away or switching off.
+             */
+            if (_hasCaughtPlayer) return;
+
+            SetVisualsVisible(isIlluminated);
+        }
+
+        private void SetVisualsVisible(bool isVisible)
+        {
             if (visualRenderers == null) return;
 
             foreach (Renderer visualRenderer in visualRenderers)
             {
                 if (visualRenderer != null)
-                    visualRenderer.enabled = isIlluminated;
+                    visualRenderer.enabled = isVisible;
             }
         }
 
