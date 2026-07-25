@@ -11,6 +11,7 @@ public class AudioSourcePoolable : MonoBehaviour, IPoolable
     private void Awake()
     {
         _audioSource = GetComponent<AudioSource>();
+
         _audioSource.playOnAwake = false;
         _audioSource.spatialBlend = 0f;
     }
@@ -20,11 +21,20 @@ public class AudioSourcePoolable : MonoBehaviour, IPoolable
         _audioSource.DOKill();
         _audioSource.Stop();
 
+        _audioSource.clip = null;
         _audioSource.pitch = 1f;
         _audioSource.volume = 1f;
         _audioSource.loop = false;
-        _audioSource.clip = null;
+        _audioSource.playOnAwake = false;
+
+        // Reset 2D/3D settings.
         _audioSource.spatialBlend = 0f;
+        _audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
+        _audioSource.minDistance = 1f;
+        _audioSource.maxDistance = 500f;
+        _audioSource.dopplerLevel = 0f;
+        _audioSource.spread = 0f;
+        _audioSource.panStereo = 0f;
 
         if (AudioPool.Instance != null)
         {
@@ -32,6 +42,7 @@ public class AudioSourcePoolable : MonoBehaviour, IPoolable
         }
 
         transform.localPosition = Vector3.zero;
+        transform.localRotation = Quaternion.identity;
     }
 
     private void OnDestroy()
