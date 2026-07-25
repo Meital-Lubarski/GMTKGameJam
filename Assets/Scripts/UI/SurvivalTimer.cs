@@ -21,18 +21,30 @@ public class SurvivalTimer : MonoBehaviour
 
     // Final survival time, e.g. for the ending scene to display.
     public float ElapsedSeconds => _elapsedSeconds;
-    public string FormattedTime => FormatTime(_elapsedSeconds);
+    public string FormattedTime => RunStats.FormatTime(_elapsedSeconds);
 
     private void OnEnable()
     {
-        EventManager.OnPlayerCaught += StopTimer;
+        EventManager.OnPlayerCaught += HandlePlayerCaught;
 
         if (startOnEnable) StartTimer();
     }
 
     private void OnDisable()
     {
-        EventManager.OnPlayerCaught -= StopTimer;
+        EventManager.OnPlayerCaught -= HandlePlayerCaught;
+    }
+
+    /*
+     * The time is handed to RunStats the moment the run ends, rather than being
+     * read off this timer later: by the time the Game Over screen asks for it
+     * the scene holding this may already be gone.
+     */
+    private void HandlePlayerCaught()
+    {
+        StopTimer();
+
+        RunStats.RecordRun(_elapsedSeconds);
     }
 
     private void Update()
@@ -66,15 +78,6 @@ public class SurvivalTimer : MonoBehaviour
         if (totalSeconds == _lastDisplayedSecond) return;
 
         _lastDisplayedSecond = totalSeconds;
-        timerText.text = FormatTime(_elapsedSeconds);
-    }
-
-    private static string FormatTime(float seconds)
-    {
-        var totalSeconds = (int)seconds;
-        var minutes = totalSeconds / 60;
-        var remainingSeconds = totalSeconds % 60;
-
-        return $"{minutes:00}:{remainingSeconds:00}";
+        timerText.text = RunStats.FormatTime(_elapsedSeconds);
     }
 }

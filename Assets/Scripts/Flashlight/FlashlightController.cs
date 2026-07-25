@@ -1,3 +1,4 @@
+using General;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -71,6 +72,12 @@ public class FlashlightController : MonoBehaviour
     private bool ghostIsClose;
     private bool isTurnedOn;
 
+    // The switch does nothing from behind the pause menu, or once the run is
+    // over. The clock alone would not stop it: the key press does not go
+    // through the clock.
+    private bool isPaused;
+    private bool runIsOver;
+
     /*
      * מונע קריאה ל-Stun בכל פריים.
      * הסטאן מופעל פעם אחת כשקרן הפנס מתחילה לפגוע ברוח.
@@ -103,11 +110,24 @@ public class FlashlightController : MonoBehaviour
 
     private void OnEnable()
     {
+        EventManager.OnGamePaused += HandleGamePaused;
+        EventManager.OnPlayerCaught += HandleRunEnded;
+
         if (flashlightAction != null)
         {
             flashlightAction.action.performed += OnFlashlightPerformed;
             flashlightAction.action.Enable();
         }
+    }
+
+    private void HandleGamePaused(bool paused)
+    {
+        isPaused = paused;
+    }
+
+    private void HandleRunEnded()
+    {
+        runIsOver = true;
     }
 
     /*
@@ -126,6 +146,9 @@ public class FlashlightController : MonoBehaviour
 
     private void OnDisable()
     {
+        EventManager.OnGamePaused -= HandleGamePaused;
+        EventManager.OnPlayerCaught -= HandleRunEnded;
+
         if (flashlightAction != null)
         {
             flashlightAction.action.performed -= OnFlashlightPerformed;
@@ -143,6 +166,11 @@ public class FlashlightController : MonoBehaviour
     private void ToggleFlashlight()
     {
         if (flashlight == null)
+        {
+            return;
+        }
+
+        if (isPaused || runIsOver)
         {
             return;
         }

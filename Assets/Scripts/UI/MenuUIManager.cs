@@ -9,6 +9,16 @@ public class MenuUIManager : MonoBehaviour
 
     private void Awake()
     {
+        /*
+         * The menu can be arrived at from a paused game or a frozen Game Over
+         * screen, and both leave the clock stopped and the mouse taken away.
+         * It takes them back rather than trusting whoever left.
+         */
+        Time.timeScale = 1f;
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
         ShowMainMenu();
     }
 

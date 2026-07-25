@@ -1,22 +1,40 @@
+using General;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.SceneManagement;
 
+/// <summary>
+/// The pause menu. It belongs in the game scene: Escape only means anything
+/// while a run is going.
+///
+/// It announces the pause through <see cref="EventManager.OnGamePaused"/> and
+/// stops there. Freezing the clock does not stop everything - looking around
+/// is driven by raw mouse movement, and so is every key the player presses -
+/// but what has to be stopped is spread across the level, and each of those
+/// listens for itself rather than being reached for from here.
+/// </summary>
 public class PauseMenuController : MonoBehaviour
 {
     [Header("Panels")]
     [SerializeField] private GameObject pausePanel;
+
+    [Tooltip(
+        "The in-game copy of the tutorial, opened from the pause menu. It must " +
+        "not be the one from the menu scene: that one starts the game when its " +
+        "button is pressed."
+    )]
     [SerializeField] private GameObject tutorialPanel;
 
-    private InputAction pauseAction;
+    [SerializeField] private InputAction pauseAction;
 
     private bool isPaused;
     private bool tutorialIsOpen;
 
+    // Once the run is over the Game Over screen owns the view, and Escape has
+    // nothing left to pause.
+    private bool runIsOver;
+
     private void Awake()
     {
-        Time.timeScale = 1f;
-
         if (pausePanel != null)
         {
             pausePanel.SetActive(false);
@@ -26,24 +44,32 @@ public class PauseMenuController : MonoBehaviour
         {
             tutorialPanel.SetActive(false);
         }
-        
-        pauseAction = new InputAction(
-            name: "Pause",
-            type: InputActionType.Button,
-            binding: "<Keyboard>/escape"
-        );
+
+        /*
+         * The run always opens unpaused and with the mouse out of the way, so
+         * arriving here from a frozen Game Over screen or a paused menu still
+         * starts the game properly.
+         */
+        Time.timeScale = 1f;
+
+        SetCursorFreed(false);
+
     }
 
     private void OnEnable()
     {
         pauseAction.performed += OnPausePressed;
         pauseAction.Enable();
+
+        EventManager.OnPlayerCaught += HandlePlayerCaught;
     }
 
     private void OnDisable()
     {
         pauseAction.performed -= OnPausePressed;
         pauseAction.Disable();
+
+        EventManager.OnPlayerCaught -= HandlePlayerCaught;
     }
 
     private void OnDestroy()
@@ -51,9 +77,17 @@ public class PauseMenuController : MonoBehaviour
         pauseAction.Dispose();
     }
 
+    private void HandlePlayerCaught()
+    {
+        runIsOver = true;
+    }
+
     private void OnPausePressed(InputAction.CallbackContext context)
     {
-        Debug.Log("ESCAPE RECEIVED");
+        if (runIsOver)
+        {
+            return;
+        }
 
         if (tutorialIsOpen)
         {
@@ -76,7 +110,7 @@ public class PauseMenuController : MonoBehaviour
         if (pausePanel == null)
         {
             Debug.LogError(
-                "Pause Panel is not assigned!",
+                "PauseMenuController has no Pause Panel assigned.",
                 this
             );
 
@@ -95,8 +129,9 @@ public class PauseMenuController : MonoBehaviour
             tutorialPanel.SetActive(false);
         }
 
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        SetCursorFreed(true);
+
+        EventManager.OnGamePaused?.Invoke(true);
     }
 
     public void ResumeGame()
@@ -116,8 +151,9 @@ public class PauseMenuController : MonoBehaviour
             tutorialPanel.SetActive(false);
         }
 
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        SetCursorFreed(false);
+
+        EventManager.OnGamePaused?.Invoke(false);
     }
 
     public void OpenTutorial()
@@ -150,24 +186,32 @@ public class PauseMenuController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Starts the run again from the beginning. The scene is loaded fresh
+    /// rather than tidied up, so nothing the last run did to it can survive.
+    /// </summary>
+    public void RestartGame()
+    {
+        GameFlow.RestartRun();
+    }
+
     public void ReturnToMainMenu()
     {
-        Time.timeScale = 1f;
-
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-
-        SceneManager.LoadScene("Screens");
+        GameFlow.ReturnToMenu();
     }
 
     public void QuitGame()
     {
-        Time.timeScale = 1f;
+        GameFlow.QuitGame();
+    }
 
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-#else
-        Application.Quit();
-#endif
+    private void SetCursorFreed(bool isFreed)
+    {
+        Cursor.lockState =
+            isFreed
+                ? CursorLockMode.None
+                : CursorLockMode.Locked;
+
+        Cursor.visible = isFreed;
     }
 }

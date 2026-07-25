@@ -51,6 +51,12 @@ public class PlayerInteractor : MonoBehaviour
     private Collider lastHitCollider;
     private IInteractable lastHitInteractable;
 
+    // While the menu is up or the run is over, nothing is looked for and
+    // nothing can be used.
+    private bool isPaused;
+    private bool runIsOver;
+    private bool isBlocked;
+
     private void Awake()
     {
         if (playerCamera == null)
@@ -62,6 +68,9 @@ public class PlayerInteractor : MonoBehaviour
     private void OnEnable()
     {
         nextScanTime = 0f;
+
+        EventManager.OnGamePaused += HandleGamePaused;
+        EventManager.OnPlayerCaught += HandleRunEnded;
 
         if (interactAction == null)
         {
@@ -77,6 +86,9 @@ public class PlayerInteractor : MonoBehaviour
         // Nothing can be used while this is off, so the prompt goes with it.
         SetCurrentInteractable(null);
 
+        EventManager.OnGamePaused -= HandleGamePaused;
+        EventManager.OnPlayerCaught -= HandleRunEnded;
+
         if (interactAction == null)
         {
             return;
@@ -86,16 +98,56 @@ public class PlayerInteractor : MonoBehaviour
         interactAction.action.Disable();
     }
 
+    /*
+     * The scan runs on the unscaled clock: the game one stops dead on a pause
+     * or a Game Over, and a clock that never moves again is a clock the next
+     * scan never comes round on.
+     */
     private void Update()
     {
-        if (Time.time < nextScanTime)
+        if (isBlocked)
         {
             return;
         }
 
-        nextScanTime = Time.time + scanInterval;
+        if (Time.unscaledTime < nextScanTime)
+        {
+            return;
+        }
+
+        nextScanTime = Time.unscaledTime + scanInterval;
 
         Scan();
+    }
+
+    /// <summary>
+    /// Nothing can be picked up from behind the pause menu or once the ghost
+    /// has the player, and the prompt has no business being on screen under
+    /// either of them. A pause is taken back on the way out; a catch is not.
+    /// </summary>
+    private void RefreshBlocked()
+    {
+        isBlocked = isPaused || runIsOver;
+
+        if (isBlocked)
+        {
+            SetCurrentInteractable(null);
+            ForgetLastHit();
+        }
+    }
+
+    private void HandleGamePaused(bool paused)
+    {
+        isPaused = paused;
+
+        RefreshBlocked();
+    }
+
+    private void HandleRunEnded()
+    {
+        runIsOver = true;
+
+        RefreshBlocked();
     }
 
     /// <summary>
@@ -186,6 +238,11 @@ public class PlayerInteractor : MonoBehaviour
 
     private void OnInteractPerformed(InputAction.CallbackContext context)
     {
+        if (isBlocked)
+        {
+            return;
+        }
+
         /*
          * A fresh look before acting, so the press always lands on what is on
          * screen at this exact moment rather than on the last scan, which can
@@ -204,7 +261,7 @@ public class PlayerInteractor : MonoBehaviour
          * Using something usually spends it, and the scan clock is reset so the
          * prompt answers the press right away instead of on the next tick.
          */
-        nextScanTime = Time.time + scanInterval;
+        nextScanTime = Time.unscaledTime + scanInterval;
 
         Scan();
     }
