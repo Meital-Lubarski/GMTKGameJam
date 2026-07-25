@@ -1411,6 +1411,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1975521478169096604, guid: 2bab214c789aa834a8ff92308426fd32, type: 3}
+      propertyPath: ghostStaticLoopClip
+      value: 
+      objectReference: {fileID: 8300000, guid: 426f129c3f3f9624ea052fbac0b0e208, type: 3}
     - target: {fileID: 2291754393642247252, guid: 2bab214c789aa834a8ff92308426fd32, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
