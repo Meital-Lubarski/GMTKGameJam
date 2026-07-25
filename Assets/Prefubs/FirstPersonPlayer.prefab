@@ -493,6 +493,7 @@ MonoBehaviour:
   firstPersonController: {fileID: 6768877166663010415}
   cameraPivot: {fileID: 1376406993937789236}
   ghostLookTarget: {fileID: 0}
+  playerInputs: {fileID: 0}
   lookTurnDuration: 0.25
 --- !u!114 &6768877166663010415 stripped
 MonoBehaviour:
