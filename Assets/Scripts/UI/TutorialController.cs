@@ -1,8 +1,15 @@
 using System.Collections;
+using General;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+/// <summary>
+/// The last screen before the run. It loads the game scene underneath itself,
+/// slides out of the way to reveal it, and then throws the whole menu scene
+/// away: from that point the run owns the screen, and its own UI - the HUD,
+/// the pause menu and the Game Over screen - lives in the game scene with it.
+/// </summary>
 public class TutorialController : MonoBehaviour
 {
     [Header("Button")]
@@ -16,8 +23,8 @@ public class TutorialController : MonoBehaviour
     [Header("Screens Scene Camera - Optional")]
     [SerializeField] private Camera screensCamera;
 
-    private const string GameSceneName = "MayScene";
-    private const string ScreensSceneName = "Screens";
+    private const string GameSceneName = GameScenes.Game;
+    private const string ScreensSceneName = GameScenes.Menu;
 
     private bool isStartingGame;
 

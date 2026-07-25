@@ -1,3 +1,4 @@
+using General;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -8,6 +9,13 @@ public class FlashlightController : MonoBehaviour
     [SerializeField] private Light flashlight;
     [SerializeField] private Transform flashlightOrigin;
     [SerializeField] private Transform ghost;
+
+    [Tooltip(
+        "Anything that only belongs on screen while the light is lit: the beam " +
+        "model, a glow, a lens flare. They are switched on and off with the " +
+        "Light itself, so the flashlight is never seen shining while it is off."
+    )]
+    [SerializeField] private GameObject[] lightVisuals;
 
     [Header("New Input System")]
     [Tooltip("The Flashlight action from the Player map. Toggles the light.")]
@@ -64,6 +72,12 @@ public class FlashlightController : MonoBehaviour
     private bool ghostIsClose;
     private bool isTurnedOn;
 
+    // The switch does nothing from behind the pause menu, or once the run is
+    // over. The clock alone would not stop it: the key press does not go
+    // through the clock.
+    private bool isPaused;
+    private bool runIsOver;
+
     /*
      * מונע קריאה ל-Stun בכל פריים.
      * הסטאן מופעל פעם אחת כשקרן הפנס מתחילה לפגוע ברוח.
@@ -96,11 +110,24 @@ public class FlashlightController : MonoBehaviour
 
     private void OnEnable()
     {
+        EventManager.OnGamePaused += HandleGamePaused;
+        EventManager.OnPlayerCaught += HandleRunEnded;
+
         if (flashlightAction != null)
         {
             flashlightAction.action.performed += OnFlashlightPerformed;
             flashlightAction.action.Enable();
         }
+    }
+
+    private void HandleGamePaused(bool paused)
+    {
+        isPaused = paused;
+    }
+
+    private void HandleRunEnded()
+    {
+        runIsOver = true;
     }
 
     /*
@@ -119,6 +146,9 @@ public class FlashlightController : MonoBehaviour
 
     private void OnDisable()
     {
+        EventManager.OnGamePaused -= HandleGamePaused;
+        EventManager.OnPlayerCaught -= HandleRunEnded;
+
         if (flashlightAction != null)
         {
             flashlightAction.action.performed -= OnFlashlightPerformed;
@@ -136,6 +166,11 @@ public class FlashlightController : MonoBehaviour
     private void ToggleFlashlight()
     {
         if (flashlight == null)
+        {
+            return;
+        }
+
+        if (isPaused || runIsOver)
         {
             return;
         }
@@ -161,10 +196,28 @@ public class FlashlightController : MonoBehaviour
             flashlight.enabled = isOn;
         }
 
+        SetLightVisualsOn(isOn);
+
         // A switched off flashlight cannot keep revealing the ghost.
         if (!isOn)
         {
             ClearIlluminatedTarget();
+        }
+    }
+
+    private void SetLightVisualsOn(bool isOn)
+    {
+        if (lightVisuals == null)
+        {
+            return;
+        }
+
+        foreach (GameObject lightVisual in lightVisuals)
+        {
+            if (lightVisual != null)
+            {
+                lightVisual.SetActive(isOn);
+            }
         }
     }
 

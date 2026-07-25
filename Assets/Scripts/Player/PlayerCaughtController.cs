@@ -4,9 +4,14 @@ using StarterAssets;
 using UnityEngine;
 
 /// <summary>
-/// Takes the player's body away from him the moment the ghost catches him:
-/// walking and looking around stop, and the view is turned onto the ghost so he
-/// has to watch what got him.
+/// Takes the player's body away from him: the moment the ghost catches him,
+/// and for as long as the game is paused. Walking and looking around stop, and
+/// a catch also turns the view onto the ghost so he has to watch what got him.
+///
+/// Both cases are the same job, which is why they are in one place. Stopping
+/// the clock does not do it on its own: walking is measured in seconds and does
+/// stop, but looking around is driven by raw mouse movement and would carry on
+/// behind the pause menu. Switching the controller off stops both together.
 /// </summary>
 [RequireComponent(typeof(FirstPersonController))]
 public class PlayerCaughtController : MonoBehaviour
@@ -26,11 +31,19 @@ public class PlayerCaughtController : MonoBehaviour
     )]
     [SerializeField] private Transform ghostLookTarget;
 
+    [Tooltip(
+        "The player's input. Left empty it is taken from this object. It is " +
+        "wiped when control comes back, so nothing the player did while the " +
+        "menu was up is acted on afterwards."
+    )]
+    [SerializeField] private StarterAssetsInputs playerInputs;
+
     [Header("Caught")]
     [Tooltip("How long the view takes to swing onto the ghost. 0 snaps straight to her.")]
     [SerializeField, Min(0f)] private float lookTurnDuration = 0.25f;
 
     private bool _isCaught;
+    private bool _isPaused;
     private float _lookTurnProgress;
 
     // Where the view was standing when the catch landed, so it swings from
@@ -42,6 +55,9 @@ public class PlayerCaughtController : MonoBehaviour
     {
         if (firstPersonController == null)
             firstPersonController = GetComponent<FirstPersonController>();
+
+        if (playerInputs == null)
+            playerInputs = GetComponent<StarterAssetsInputs>();
 
         if (
             cameraPivot == null &&
@@ -56,17 +72,26 @@ public class PlayerCaughtController : MonoBehaviour
     private void OnEnable()
     {
         EventManager.OnPlayerCaught += HandlePlayerCaught;
+        EventManager.OnGamePaused += HandleGamePaused;
     }
 
     private void OnDisable()
     {
         EventManager.OnPlayerCaught -= HandlePlayerCaught;
+        EventManager.OnGamePaused -= HandleGamePaused;
     }
 
     // Every run starts with the player in control of himself.
     private void Start()
     {
-        SetMovementEnabled(true);
+        ApplyControlState();
+    }
+
+    private void HandleGamePaused(bool isPaused)
+    {
+        _isPaused = isPaused;
+
+        ApplyControlState();
     }
 
     private void HandlePlayerCaught()
@@ -76,7 +101,7 @@ public class PlayerCaughtController : MonoBehaviour
 
         _isCaught = true;
 
-        SetMovementEnabled(false);
+        ApplyControlState();
 
         _bodyRotationWhenCaught = transform.rotation;
 
@@ -176,13 +201,29 @@ public class PlayerCaughtController : MonoBehaviour
     }
 
     /// <summary>
+    /// Hands the controls back only when there is nothing holding them.
     /// Switching the controller off freezes walking and looking around at once,
     /// which is exactly what leaves the view free for the catch to aim it.
+    ///
+    /// A pause is given back on the way out. A catch is not: once she has him,
+    /// the run is over and unpausing cannot undo it.
     /// </summary>
-    private void SetMovementEnabled(bool isEnabled)
+    private void ApplyControlState()
     {
-        if (firstPersonController == null) return;
+        bool playerHasControl = !_isCaught && !_isPaused;
 
-        firstPersonController.enabled = isEnabled;
+        if (firstPersonController != null)
+            firstPersonController.enabled = playerHasControl;
+
+        /*
+         * Whatever he was doing when he lost control is thrown away on the way
+         * back in, so he does not walk off, and the view does not swing round,
+         * on the frame it is handed back.
+         */
+        if (playerHasControl && playerInputs != null)
+        {
+            playerInputs.MoveInput(Vector2.zero);
+            playerInputs.LookInput(Vector2.zero);
+        }
     }
 }
