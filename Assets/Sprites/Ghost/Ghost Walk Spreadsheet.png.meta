@@ -164,8 +164,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: e0368040b96cf4745abc64b4e51ae0d2
-      internalID: 2110370338
+      spriteID: 1d3e4ae9a1de4fd4a89790a62e1af640
+      internalID: -336417921
       vertices: []
       indices: 
       edges: []
@@ -186,8 +186,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: d0b3603a06b86b94387a04cadc3090fb
-      internalID: -2144873485
+      spriteID: e9a15748f290edd49bb8628655e81d87
+      internalID: 1948542057
       vertices: []
       indices: 
       edges: []
@@ -208,8 +208,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 6077b47704b13d047bac4d82eaadfc9a
-      internalID: -884788957
+      spriteID: dc0f3884b96afc04b8567db77a110fd9
+      internalID: 1652139882
       vertices: []
       indices: 
       edges: []
@@ -230,8 +230,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 89dccbe1752221b49a9a82a785be4781
-      internalID: -1255866406
+      spriteID: 5544400f916982145b6a9f364741e702
+      internalID: -1912889331
       vertices: []
       indices: 
       edges: []
@@ -252,8 +252,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: da5c6df7dd28f834fa0f5ff0f9d6fa5a
-      internalID: 1488607024
+      spriteID: 900bc6bc73a0f33449937c73e5e64364
+      internalID: 412237992
       vertices: []
       indices: 
       edges: []
@@ -262,7 +262,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 2fc87d1bd9355c5488ea487fe6b424d5
+    spriteID: 1af58e85edde32848866dcb0aab06875
     internalID: 0
     vertices: []
     indices: 
@@ -274,11 +274,11 @@ TextureImporter:
       - key: SpriteEditor.SliceSettings
         value: '{"sliceOnImport":false,"gridCellCount":{"x":3.0,"y":2.0},"gridSpriteSize":{"x":1920.0,"y":1080.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":2,"keepEmptyRects":false,"isAlternate":false}'
     nameFileIdTable:
-      Ghost Walk Spreadsheet_0: 2110370338
-      Ghost Walk Spreadsheet_1: -2144873485
-      Ghost Walk Spreadsheet_2: -884788957
-      Ghost Walk Spreadsheet_3: -1255866406
-      Ghost Walk Spreadsheet_4: 1488607024
+      Ghost Walk Spreadsheet_0: -336417921
+      Ghost Walk Spreadsheet_1: 1948542057
+      Ghost Walk Spreadsheet_2: 1652139882
+      Ghost Walk Spreadsheet_3: -1912889331
+      Ghost Walk Spreadsheet_4: 412237992
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

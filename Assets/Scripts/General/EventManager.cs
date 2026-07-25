@@ -19,5 +19,13 @@ namespace General
         // to its length. OnGhostStunEnded follows once the ghost recovers.
         public static Action<float> OnGhostStunned;
         public static Action OnGhostStunEnded;
+
+        // Raised when the ghost reaches the player and starts closing in on
+        // him. The float is how long she needs to catch him, so a listener can
+        // match an animation to that window. OnGhostApproachEnded follows if
+        // the player escapes the radius or stuns her in time; if he does
+        // neither, OnPlayerCaught follows instead.
+        public static Action<float> OnGhostApproachStarted;
+        public static Action OnGhostApproachEnded;
     }
 }

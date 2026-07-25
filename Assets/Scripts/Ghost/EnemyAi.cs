@@ -38,9 +38,6 @@ namespace Ghost
         private Vector3 _walkPoint;
         private bool _walkPointSet;
 
-        // Attacking
-        private bool _alreadyAttacked;
-
         // States
         [Header("States")]
         [SerializeField] private float sightRange;
@@ -51,16 +48,24 @@ namespace Ghost
 
         // Catching
         [Header("Catching")]
-        [Tooltip("How long the player must stay inside attack range to be caught.")]
-        [SerializeField] private float catchTime = 2f;
+        [Tooltip(
+            "How long the ghost has to keep the player inside the catch radius " +
+            "before she catches him. The player spends that time being closed in on, " +
+            "and gets away by leaving the radius or stunning her."
+        )]
+        [SerializeField] private float catchTime = 3f;
         private float _catchTimer;
         private bool _hasCaughtPlayer;
+
+        // Set while the ghost is on the player but has not caught him yet.
+        private bool _isApproaching;
 
         // Stun
         [Header("Stun")]
         [Tooltip(
             "How long the ghost keeps going after the flashlight catches her, " +
-            "before the stun actually takes hold."
+            "before the stun actually takes hold. Keeps her walking in the beam " +
+            "for a moment instead of freezing the instant she is lit."
         )]
         [SerializeField] private float stunDelay = 2f;
 
@@ -81,7 +86,6 @@ namespace Ghost
                 visualRenderers = GetComponentsInChildren<Renderer>(true);
 
             agent.speed = initialSpeed;
-            _alreadyAttacked = false;
             _walkPointSet = false;
 
             // The ghost stays unseen until the flashlight beam finds her.
@@ -124,19 +128,26 @@ namespace Ghost
             if (_playerInSightRange && !_playerInAttackRange) ChasePlayer();
             if (_playerInAttackRange && _playerInSightRange) AttackPlayer();
 
-            HandleCatch();
+            HandleApproach();
             HandleSpeedIncrease();
         }
 
-        private void HandleCatch()
+        /// <summary>
+        /// The window between reaching the player and catching him. Leaving the
+        /// radius ends it with the player safe, and so does a stun; only staying
+        /// inside it for the whole of <see cref="catchTime"/> gets him caught.
+        /// </summary>
+        private void HandleApproach()
         {
-            // Reset the moment the player escapes the catch radius, so only
-            // continuous contact counts toward being caught.
+            // The player escaped the radius, so he is safe and the ghost goes
+            // back to chasing him normally.
             if (!_playerInAttackRange)
             {
-                _catchTimer = 0f;
+                SetApproaching(false);
                 return;
             }
+
+            SetApproaching(true);
 
             _catchTimer += Time.deltaTime;
 
@@ -144,9 +155,44 @@ namespace Ghost
                 CatchPlayer();
         }
 
+        /// <summary>
+        /// Enters or leaves the closing-in state, announcing it once per change
+        /// so the animation only switches on the way in and out.
+        /// </summary>
+        private void SetApproaching(bool isApproaching)
+        {
+            if (_isApproaching == isApproaching) return;
+
+            _isApproaching = isApproaching;
+
+            // Every stay inside the radius is timed from scratch, so a player
+            // who gets away undoes all the progress towards the catch.
+            _catchTimer = 0f;
+
+            if (isApproaching)
+                EventManager.OnGhostApproachStarted?.Invoke(catchTime);
+            else
+                EventManager.OnGhostApproachEnded?.Invoke();
+        }
+
+        /// <summary>
+        /// Leaves the closing-in state without announcing it, for the two
+        /// endings that bring an animation of their own: the stun and the kill.
+        /// Announcing here would fire the "back to walking" change as well and
+        /// the two would fight over the same frame.
+        /// </summary>
+        private void DropApproachSilently()
+        {
+            _isApproaching = false;
+            _catchTimer = 0f;
+        }
+
         private void CatchPlayer()
         {
             _hasCaughtPlayer = true;
+
+            // The kill takes over from the closing-in animation.
+            DropApproachSilently();
 
             // Freeze the ghost in place; the listener handles the actual loss/scene.
             if (agent.isOnNavMesh) agent.ResetPath();
@@ -190,7 +236,9 @@ namespace Ghost
 
         /// <summary>
         /// Called by the flashlight when its beam catches the ghost.
-        /// The duration comes from how much battery is left.
+        /// The duration comes from how much battery is left. The stun does not
+        /// land straight away: she keeps closing in for <see cref="stunDelay"/>
+        /// first, so the player has to light her up early enough to be saved.
         /// </summary>
         public void Stun(float duration)
         {
@@ -232,6 +280,14 @@ namespace Ghost
             _pendingStunDelay = 0f;
             _pendingStunDuration = 0f;
 
+            /*
+             * Freezing throws away any progress towards the catch, so the
+             * player is safe until she recovers and starts closing in again.
+             * The stun animation takes over from the closing-in one by itself,
+             * so no end is announced that would fight it.
+             */
+            DropApproachSilently();
+
             SetAgentStopped(true);
 
             EventManager.OnGhostStunned?.Invoke(_stunTimer);
@@ -242,9 +298,6 @@ namespace Ghost
             _stunTimer -= Time.deltaTime;
 
             FacePlayer();
-
-            // Being stunned interrupts any catch that was in progress.
-            _catchTimer = 0f;
 
             if (_stunTimer > 0f) return;
 
@@ -340,14 +393,6 @@ namespace Ghost
 
             // The ghost always looks at the player
             FacePlayer();
-
-            if (!_alreadyAttacked)
-            {
-                // TODO: Attack code here
-
-                _alreadyAttacked = true; 
-                // Note: Remember to reset _alreadyAttacked after a certain time so it can attack again
-            }
         }
     }
 }

@@ -149,7 +149,7 @@ MonoBehaviour:
   walkPointRange: 10
   sightRange: 20
   attackRange: 2
-  catchTime: 2
+  catchTime: 3
   stunDelay: 2
 --- !u!1 &8323740178140748359
 GameObject:
