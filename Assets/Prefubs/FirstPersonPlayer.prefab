@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6185465319545380520}
   - component: {fileID: 6162872868350776386}
+  - component: {fileID: 1540485051507943659}
   m_Layer: 9
   m_Name: Flashlight
   m_TagString: Untagged
@@ -91,6 +92,27 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!114 &1540485051507943659
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3398964015212392554}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2e6b4487e71763d488aae06100eb4f05, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BatteryDisplay
+  batteryManager: {fileID: 8986725812793832302}
+  barSprites:
+  - {fileID: 1662683055, guid: 6ee8321f976864c40ba81d7ebea7e0c5, type: 3}
+  - {fileID: 2102913669, guid: 6ee8321f976864c40ba81d7ebea7e0c5, type: 3}
+  - {fileID: -683173715, guid: 6ee8321f976864c40ba81d7ebea7e0c5, type: 3}
+  - {fileID: 2011239488, guid: 6ee8321f976864c40ba81d7ebea7e0c5, type: 3}
+  - {fileID: 1924535986, guid: 6ee8321f976864c40ba81d7ebea7e0c5, type: 3}
+  blinkDuration: 2
+  blinkInterval: 0.15
 --- !u!1 &7523767613007071454
 GameObject:
   m_ObjectHideFlags: 0
@@ -269,11 +291,13 @@ MonoBehaviour:
   flashlight: {fileID: 3178348346059270527}
   flashlightOrigin: {fileID: 2481795498283086774}
   ghost: {fileID: 0}
+  flashlightAction: {fileID: -3499336674170276408, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  startTurnedOn: 1
   ghostCloseDistance: 8
   weakLightIntensity: 2
   strongLightIntensity: 8
-  weakDrainPerSecond: 0.5
-  strongDrainPerSecond: 2
+  weakDrainMultiplier: 1
+  strongDrainMultiplier: 2
   ghostLayer:
     serializedVersion: 2
     m_Bits: 256
@@ -294,6 +318,10 @@ PrefabInstance:
     - target: {fileID: 5393215578589016642, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
       propertyPath: m_Layer
       value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 6254440264614894930, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
+      propertyPath: secondsPerBar
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 7175221077158699519, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
       propertyPath: playerCamera
