@@ -127,6 +127,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 5388486638634174569, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
+      propertyPath: ghostLookTarget
+      value: 
+      objectReference: {fileID: 528946150}
     - target: {fileID: 6742614450991282571, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
       propertyPath: postProcessingVolume
       value: 
@@ -139,10 +143,6 @@ PrefabInstance:
       propertyPath: ghost
       value: 
       objectReference: {fileID: 1774028720}
-    - target: {fileID: 7980007786326134619, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
-      propertyPath: flashlightAction
-      value: 
-      objectReference: {fileID: -3499336674170276408, guid: 052faaac586de48259a63d0c4782560b, type: 3}
     - target: {fileID: 8396610744122045648, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0.84136
@@ -183,17 +183,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 8986725812793832302, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
-      propertyPath: secondsPerBar
-      value: 2
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 3398964015212392554, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 509626929}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
 --- !u!4 &292103349 stripped
 Transform:
@@ -257,30 +250,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 147b3a02cb6cdf543830e42d8133a2a1, type: 3}
---- !u!1 &509626926 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 3398964015212392554, guid: fd77ad72d997bec4e8dbf10d3dc8f176, type: 3}
-  m_PrefabInstance: {fileID: 292103348}
+--- !u!4 &528946150 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 9002790965923952356, guid: 4bf2fe88980c92e4bb3f65a7f261bb9a, type: 3}
+  m_PrefabInstance: {fileID: 2590194057009965966}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &509626929
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 509626926}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2e6b4487e71763d488aae06100eb4f05, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BatteryDisplay
-  batteryManager: {fileID: 0}
-  barSprites:
-  - {fileID: 1662683055, guid: 6ee8321f976864c40ba81d7ebea7e0c5, type: 3}
-  - {fileID: 2102913669, guid: 6ee8321f976864c40ba81d7ebea7e0c5, type: 3}
-  - {fileID: -683173715, guid: 6ee8321f976864c40ba81d7ebea7e0c5, type: 3}
-  - {fileID: 2011239488, guid: 6ee8321f976864c40ba81d7ebea7e0c5, type: 3}
-  - {fileID: 1924535986, guid: 6ee8321f976864c40ba81d7ebea7e0c5, type: 3}
 --- !u!1 &557190793
 GameObject:
   m_ObjectHideFlags: 0
@@ -329,10 +303,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.CanvasScaler
-  m_UiScaleMode: 0
+  m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 800, y: 600}
+  m_ReferenceResolution: {x: 1920, y: 1080}
   m_ScreenMatchMode: 0
   m_MatchWidthOrHeight: 0
   m_PhysicalUnit: 3
@@ -1153,7 +1127,7 @@ PrefabInstance:
       objectReference: {fileID: 292103349}
     - target: {fileID: 9002790965923952356, guid: 4bf2fe88980c92e4bb3f65a7f261bb9a, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -1.71
+      value: 0.09
       objectReference: {fileID: 0}
     - target: {fileID: 9002790965923952356, guid: 4bf2fe88980c92e4bb3f65a7f261bb9a, type: 3}
       propertyPath: m_LocalPosition.y
@@ -1194,7 +1168,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3722622097716972213, guid: 4bf2fe88980c92e4bb3f65a7f261bb9a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
   m_SourcePrefab: {fileID: 100100000, guid: 4bf2fe88980c92e4bb3f65a7f261bb9a, type: 3}
 --- !u!1001 &7416181091236947016
 PrefabInstance:

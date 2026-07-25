@@ -50,6 +50,16 @@ public class FlashlightController : MonoBehaviour
     [SerializeField, Min(0f)]
     private float detectionRadius = 0.4f;
 
+    [Header("Stun Range")]
+    [Tooltip(
+        "How close the ghost has to be for the beam to stun her. The beam still " +
+        "reveals her as far as Detection Distance, so she can be seen coming " +
+        "from across the room without being stoppable from there. Keep this " +
+        "wider than her Attack Range, or the player could never break a catch."
+    )]
+    [SerializeField, Min(0f)]
+    private float stunRange = 8f;
+
     private IFlashlightTarget currentlyIlluminatedTarget;
     private bool ghostIsClose;
     private bool isTurnedOn;
@@ -269,6 +279,12 @@ public class FlashlightController : MonoBehaviour
          */
         if (currentlyIlluminatedTarget == target)
         {
+            /*
+             * The stun is not applied again, but it is retried: the ghost may
+             * have been too far away to stun when the beam first found her and
+             * have closed the distance since, with the beam never leaving her.
+             */
+            ApplyStunToCurrentTarget(hit.distance);
             return;
         }
 
@@ -285,10 +301,10 @@ public class FlashlightController : MonoBehaviour
         /*
          * מפעילים סטאן פעם אחת בלבד.
          */
-        ApplyStunToCurrentTarget();
+        ApplyStunToCurrentTarget(hit.distance);
     }
 
-    private void ApplyStunToCurrentTarget()
+    private void ApplyStunToCurrentTarget(float distanceToGhost)
     {
         if (stunAppliedForCurrentIllumination)
         {
@@ -296,6 +312,15 @@ public class FlashlightController : MonoBehaviour
         }
 
         if (currentlyIlluminatedTarget == null)
+        {
+            return;
+        }
+
+        /*
+         * Out of reach: the beam keeps showing her, but from this far away it
+         * does nothing to her. The player has to let her come closer.
+         */
+        if (distanceToGhost > stunRange)
         {
             return;
         }
@@ -369,6 +394,14 @@ public class FlashlightController : MonoBehaviour
             origin.position +
             origin.forward * detectionDistance,
             detectionRadius
+        );
+
+        // How close the ghost has to be before the beam can stop her.
+        Gizmos.color = Color.yellow;
+
+        Gizmos.DrawWireSphere(
+            origin.position,
+            stunRange
         );
     }
 }

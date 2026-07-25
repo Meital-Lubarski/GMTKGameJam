@@ -26,6 +26,15 @@ public class BatteryManager : MonoBehaviour
     public int CurrentBars => CalculateCurrentBars();
     public bool IsEmpty => currentCharge <= 0f;
 
+    /// <summary>
+    /// Seconds of flashlight use left before the current bar is lost.
+    /// Used to warn the player just before a bar disappears.
+    /// </summary>
+    public float SecondsUntilBarLost =>
+        IsEmpty
+            ? 0f
+            : currentCharge - (CurrentBars - 1) * secondsPerBar;
+
     private void Awake()
     {
         currentCharge = startWithFullBattery
