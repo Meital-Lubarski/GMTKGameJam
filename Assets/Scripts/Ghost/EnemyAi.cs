@@ -4,12 +4,19 @@ using UnityEngine.AI;
 
 namespace Ghost
 {
-    public class EnemyAi : MonoBehaviour
+    public class EnemyAi : MonoBehaviour, IFlashlightTarget
     {
         [Header("References")]
         [SerializeField] private NavMeshAgent agent;
         [SerializeField] private Transform player;
-        
+
+        [Header("Visibility")]
+        [Tooltip(
+            "Renderers kept hidden until the flashlight beam is on the ghost. " +
+            "Leave empty to use every renderer found in the children."
+        )]
+        [SerializeField] private Renderer[] visualRenderers;
+
         [Header("Layers")]
         [SerializeField] private LayerMask whatIsGround;
         [SerializeField] private LayerMask whatIsPlayer;
@@ -49,19 +56,65 @@ namespace Ghost
         private float _catchTimer;
         private bool _hasCaughtPlayer;
 
+        // Stun
+        [Header("Stun")]
+        [Tooltip(
+            "How long the ghost keeps going after the flashlight catches her, " +
+            "before the stun actually takes hold."
+        )]
+        [SerializeField] private float stunDelay = 2f;
+
+        private float _stunTimer;
+
+        // A stun that was triggered but has not taken hold yet.
+        private float _pendingStunDelay;
+        private float _pendingStunDuration;
+
+        private bool IsStunned => _stunTimer > 0f;
+        private bool HasPendingStun => _pendingStunDuration > 0f;
+
         private void Awake()
         {
             if (agent == null) agent = GetComponent<NavMeshAgent>();
 
+            if (visualRenderers == null || visualRenderers.Length == 0)
+                visualRenderers = GetComponentsInChildren<Renderer>(true);
+
             agent.speed = initialSpeed;
             _alreadyAttacked = false;
             _walkPointSet = false;
+
+            // The ghost stays unseen until the flashlight beam finds her.
+            SetIlluminated(false);
         }
 
         private void Update()
         {
             // Once the player is caught the run is over, so stop all behaviour.
             if (_hasCaughtPlayer) return;
+
+            /*
+             * A stunned ghost stops moving and cannot catch the player, but she
+             * keeps turning towards him: the visual is a flat sprite, so it must
+             * never be seen from the side.
+             */
+            if (IsStunned)
+            {
+                HandleStun();
+                return;
+            }
+
+            /*
+             * The flashlight has caught her but the stun has not landed yet, so
+             * she keeps walking and can still catch the player until it does.
+             */
+            if (HasPendingStun)
+            {
+                TickPendingStun();
+
+                // The delay just ran out, so let the stun take over from here.
+                if (IsStunned) return;
+            }
 
             // Check for sight and attack range
             _playerInSightRange = Physics.CheckSphere(transform.position, sightRange, whatIsPlayer);
@@ -99,6 +152,117 @@ namespace Ghost
             if (agent.isOnNavMesh) agent.ResetPath();
 
             EventManager.OnPlayerCaught?.Invoke();
+        }
+
+        /// <summary>
+        /// Called by the flashlight while its beam is on the ghost.
+        /// Hiding the renderers only affects what is drawn: the ghost keeps
+        /// patrolling, chasing and catching while unseen.
+        /// </summary>
+        public void SetIlluminated(bool isIlluminated)
+        {
+            if (visualRenderers == null) return;
+
+            foreach (Renderer visualRenderer in visualRenderers)
+            {
+                if (visualRenderer != null)
+                    visualRenderer.enabled = isIlluminated;
+            }
+        }
+
+        /// <summary>
+        /// Called by the flashlight when its beam catches the ghost.
+        /// The duration comes from how much battery is left.
+        /// </summary>
+        public void Stun(float duration)
+        {
+            if (duration <= 0f || _hasCaughtPlayer) return;
+
+            // Already frozen, so only make sure the longer stun wins.
+            if (IsStunned)
+            {
+                _stunTimer = Mathf.Max(_stunTimer, duration);
+                return;
+            }
+
+            /*
+             * Start the delay only for a fresh stun. Being hit again while the
+             * delay is running must not push the stun further away, otherwise
+             * flicking the beam could hold it off forever.
+             */
+            if (!HasPendingStun) _pendingStunDelay = stunDelay;
+
+            _pendingStunDuration = Mathf.Max(_pendingStunDuration, duration);
+
+            // With no delay configured the stun takes hold immediately.
+            if (_pendingStunDelay <= 0f) BeginStun();
+        }
+
+        private void TickPendingStun()
+        {
+            _pendingStunDelay -= Time.deltaTime;
+
+            if (_pendingStunDelay > 0f) return;
+
+            BeginStun();
+        }
+
+        private void BeginStun()
+        {
+            _stunTimer = _pendingStunDuration;
+
+            _pendingStunDelay = 0f;
+            _pendingStunDuration = 0f;
+
+            SetAgentStopped(true);
+
+            EventManager.OnGhostStunned?.Invoke(_stunTimer);
+        }
+
+        private void HandleStun()
+        {
+            _stunTimer -= Time.deltaTime;
+
+            FacePlayer();
+
+            // Being stunned interrupts any catch that was in progress.
+            _catchTimer = 0f;
+
+            if (_stunTimer > 0f) return;
+
+            _stunTimer = 0f;
+
+            SetAgentStopped(false);
+
+            EventManager.OnGhostStunEnded?.Invoke();
+        }
+
+        private void SetAgentStopped(bool isStopped)
+        {
+            if (agent == null || !agent.isOnNavMesh) return;
+
+            agent.isStopped = isStopped;
+
+            // Drop any leftover momentum so the stun freezes her on the spot
+            // instead of letting her glide to a stop.
+            if (isStopped) agent.velocity = Vector3.zero;
+        }
+
+        /// <summary>
+        /// Turns the ghost towards the player without tipping her over.
+        /// The rotation is flattened because the ghost is a 2D sprite living
+        /// in a 3D scene.
+        /// </summary>
+        private void FacePlayer()
+        {
+            if (player == null) return;
+
+            Vector3 directionToPlayer = player.position - transform.position;
+            directionToPlayer.y = 0f;
+
+            if (directionToPlayer.sqrMagnitude < 0.0001f) return;
+
+            transform.rotation = Quaternion.LookRotation(directionToPlayer);
         }
 
         private void HandleSpeedIncrease()
@@ -157,7 +321,7 @@ namespace Ghost
             agent.SetDestination(transform.position);
 
             // The ghost always looks at the player
-            transform.LookAt(player);
+            FacePlayer();
 
             if (!_alreadyAttacked)
             {
