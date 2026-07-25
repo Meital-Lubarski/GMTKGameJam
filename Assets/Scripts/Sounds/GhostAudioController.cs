@@ -17,14 +17,31 @@ public class GhostAudioController : MonoBehaviour
     [SerializeField]
     private NavMeshAgent ghostAgent;
 
+    [Header("Ghost Static Loop")]
+    [Tooltip(
+        "A continuous 3D static sound. " +
+        "It is loud when the ghost is close and quiet when far away."
+    )]
+    [SerializeField]
+    private AudioClip ghostStaticLoopClip;
+
+    [SerializeField, Range(0f, 1f)]
+    private float ghostStaticVolume = 0.8f;
+
+    [SerializeField, Min(0.01f)]
+    private float staticMinDistance = 2f;
+
+    [SerializeField, Min(0.01f)]
+    private float staticMaxDistance = 35f;
+
     [Header("Ghost Footsteps")]
     [SerializeField]
     private AudioClip[] footstepClips;
 
-    [SerializeField]
+    [SerializeField, Min(0f)]
     private float minimumMovementSpeed = 0.1f;
 
-    [SerializeField]
+    [SerializeField, Min(0.05f)]
     private float footstepInterval = 0.6f;
 
     [SerializeField, Range(0f, 1f)]
@@ -40,10 +57,10 @@ public class GhostAudioController : MonoBehaviour
     [SerializeField]
     private bool playFrequentVoices = true;
 
-    [SerializeField]
+    [SerializeField, Min(0.1f)]
     private float minimumVoiceInterval = 2.5f;
 
-    [SerializeField]
+    [SerializeField, Min(0.1f)]
     private float maximumVoiceInterval = 5f;
 
     [SerializeField, Range(0f, 1f)]
@@ -62,44 +79,91 @@ public class GhostAudioController : MonoBehaviour
     [SerializeField, Range(0f, 1f)]
     private float chokingVolume = 1f;
 
-    [Header("3D Sound Distance")]
+    [Header("Stun Sounds")]
     [SerializeField]
+    private AudioClip stunInClip;
+
+    [SerializeField]
+    private AudioClip stunOutClip;
+
+    [SerializeField, Range(0f, 1f)]
+    private float stunInVolume = 1f;
+
+    [SerializeField, Range(0f, 1f)]
+    private float stunOutVolume = 1f;
+
+    [Header("General 3D Sound Distance")]
+    [SerializeField, Min(0.01f)]
     private float minDistance = 2f;
 
-    [SerializeField]
+    [SerializeField, Min(0.01f)]
     private float maxDistance = 35f;
 
+    private AudioSourcePoolable ghostStaticLoop;
     private Coroutine voiceCoroutine;
 
     private Vector3 previousPosition;
+
     private float footstepTimer;
+    private int previousFootstepIndex = -1;
+
+    private bool isStunned;
+    private bool hasStarted;
+
+    public bool IsStunned => isStunned;
 
     private void Awake()
     {
         Instance = this;
 
-        if (ghostTransform == null)
+        /*
+         * The AudioManager prefab cannot permanently reference
+         * scene objects. When a Ghost Agent is assigned in the
+         * scene, its Transform is used automatically.
+         *
+         * There is intentionally no fallback to this.transform,
+         * because this component may be on the AudioManager.
+         */
+        if (ghostTransform == null &&
+            ghostAgent != null)
         {
-            if (ghostAgent != null)
-            {
-                ghostTransform = ghostAgent.transform;
-            }
-            else
-            {
-                ghostTransform = transform;
-            }
+            ghostTransform = ghostAgent.transform;
         }
+    }
+
+    private void Start()
+    {
+        hasStarted = true;
+
+        StartGhostAudio();
     }
 
     private void OnEnable()
     {
-        if (ghostTransform != null)
+        /*
+         * Start is called only once. This restarts the audio
+         * if this component is disabled and enabled later.
+         */
+        if (hasStarted)
         {
-            previousPosition =
-                ghostTransform.position;
+            StartGhostAudio();
+        }
+    }
+
+    private void StartGhostAudio()
+    {
+        if (ghostTransform == null)
+        {
+            return;
         }
 
-        if (playFrequentVoices)
+        previousPosition = ghostTransform.position;
+        footstepTimer = 0f;
+
+        StartGhostStaticLoop();
+
+        if (playFrequentVoices &&
+            !isStunned)
         {
             StartFrequentVoices();
         }
@@ -107,8 +171,90 @@ public class GhostAudioController : MonoBehaviour
 
     private void Update()
     {
+        if (ghostTransform == null ||
+            isStunned)
+        {
+            return;
+        }
+
         UpdateFootsteps();
     }
+
+    #region Ghost Static
+
+    public void StartGhostStaticLoop()
+    {
+        if (ghostStaticLoop != null ||
+            ghostStaticLoopClip == null ||
+            ghostTransform == null ||
+            SoundManager.Instance == null)
+        {
+            return;
+        }
+
+        /*
+         * PlayLoopAtPosition parents the pooled AudioSource
+         * to the ghost, so it moves together with it.
+         */
+        ghostStaticLoop =
+            SoundManager.Instance.PlayLoopAtPosition(
+                ghostStaticLoopClip,
+                ghostTransform,
+                ghostStaticVolume
+            );
+
+        if (ghostStaticLoop == null)
+        {
+            return;
+        }
+
+        AudioSource source = ghostStaticLoop.Source;
+
+        /*
+         * Spatial Blend 1 makes this a fully 3D sound.
+         * Unity changes the volume automatically according
+         * to the distance from the Audio Listener.
+         */
+        source.spatialBlend = 1f;
+
+        source.rolloffMode =
+            AudioRolloffMode.Logarithmic;
+
+        source.minDistance =
+            Mathf.Max(
+                0.01f,
+                staticMinDistance
+            );
+
+        source.maxDistance =
+            Mathf.Max(
+                source.minDistance,
+                staticMaxDistance
+            );
+
+        source.dopplerLevel = 0f;
+    }
+
+    public void StopGhostStaticLoop()
+    {
+        if (ghostStaticLoop == null)
+        {
+            return;
+        }
+
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.StopLoop(
+                ghostStaticLoop
+            );
+        }
+
+        ghostStaticLoop = null;
+    }
+
+    #endregion
+
+    #region Footsteps
 
     private void UpdateFootsteps()
     {
@@ -128,6 +274,7 @@ public class GhostAudioController : MonoBehaviour
         }
 
         PlayFootstep();
+
         footstepTimer = footstepInterval;
     }
 
@@ -167,31 +314,77 @@ public class GhostAudioController : MonoBehaviour
 
     private void PlayFootstep()
     {
-        AudioClip clip = GetRandomClip(
-            footstepClips
-        );
+        AudioClip clip =
+            GetRandomFootstepClip();
 
         if (clip == null)
         {
             return;
         }
 
-        float pitch = Random.Range(
+        float randomPitch = Random.Range(
             1f - footstepPitchVariation,
             1f + footstepPitchVariation
         );
 
+        /*
+         * Footsteps remain at the position where the step
+         * happened instead of following the ghost afterward.
+         */
         PlayGhostSound(
             clip,
             footstepVolume,
-            pitch,
+            randomPitch,
             false
         );
     }
 
+    private AudioClip GetRandomFootstepClip()
+    {
+        if (footstepClips == null ||
+            footstepClips.Length == 0)
+        {
+            return null;
+        }
+
+        if (footstepClips.Length == 1)
+        {
+            previousFootstepIndex = 0;
+
+            return footstepClips[0];
+        }
+
+        int randomIndex;
+
+        do
+        {
+            randomIndex = Random.Range(
+                0,
+                footstepClips.Length
+            );
+        }
+        while (
+            randomIndex ==
+            previousFootstepIndex
+        );
+
+        previousFootstepIndex =
+            randomIndex;
+
+        return footstepClips[randomIndex];
+    }
+
+    #endregion
+
+    #region Frequent Voices
+
     public void StartFrequentVoices()
     {
-        if (voiceCoroutine != null)
+        if (voiceCoroutine != null ||
+            ghostTransform == null ||
+            isStunned ||
+            !playFrequentVoices ||
+            !HasValidClip(frequentVoiceClips))
         {
             return;
         }
@@ -209,6 +402,7 @@ public class GhostAudioController : MonoBehaviour
         }
 
         StopCoroutine(voiceCoroutine);
+
         voiceCoroutine = null;
     }
 
@@ -216,25 +410,51 @@ public class GhostAudioController : MonoBehaviour
     {
         while (true)
         {
+            float smallestInterval =
+                Mathf.Min(
+                    minimumVoiceInterval,
+                    maximumVoiceInterval
+                );
+
+            float largestInterval =
+                Mathf.Max(
+                    minimumVoiceInterval,
+                    maximumVoiceInterval
+                );
+
             float delay = Random.Range(
-                minimumVoiceInterval,
-                maximumVoiceInterval
+                smallestInterval,
+                largestInterval
             );
 
             yield return new WaitForSeconds(
                 Mathf.Max(0.1f, delay)
             );
 
-            PlayRandomVoice();
+            if (!isStunned &&
+                ghostTransform != null)
+            {
+                PlayRandomVoice();
+            }
         }
     }
 
     public void PlayRandomVoice()
     {
-        AudioClip clip = GetRandomClip(
-            frequentVoiceClips
-        );
+        if (ghostTransform == null ||
+            isStunned)
+        {
+            return;
+        }
 
+        AudioClip clip =
+            GetRandomClip(
+                frequentVoiceClips
+            );
+
+        /*
+         * The voice follows the ghost while the clip plays.
+         */
         PlayGhostSound(
             clip,
             voiceVolume,
@@ -243,8 +463,18 @@ public class GhostAudioController : MonoBehaviour
         );
     }
 
+    #endregion
+
+    #region Attack
+
     public void PlayAttackStarted()
     {
+        if (ghostTransform == null ||
+            isStunned)
+        {
+            return;
+        }
+
         PlayGhostSound(
             attackStartedClip,
             attackVolume,
@@ -255,6 +485,12 @@ public class GhostAudioController : MonoBehaviour
 
     public void PlayGhostChoking()
     {
+        if (ghostTransform == null ||
+            isStunned)
+        {
+            return;
+        }
+
         PlayGhostSound(
             ghostChokingClip,
             chokingVolume,
@@ -262,6 +498,108 @@ public class GhostAudioController : MonoBehaviour
             true
         );
     }
+
+    #endregion
+
+    #region Stun
+
+    public void EnterStun()
+    {
+        SetStunned(true);
+    }
+
+    public void ExitStun()
+    {
+        SetStunned(false);
+    }
+
+    public void SetStunned(bool stunned)
+    {
+        if (ghostTransform == null ||
+            isStunned == stunned)
+        {
+            return;
+        }
+
+        isStunned = stunned;
+        footstepTimer = 0f;
+
+        /*
+         * Prevents a false footstep after the ghost exits
+         * stun or is moved while stunned.
+         */
+        previousPosition =
+            ghostTransform.position;
+
+        if (isStunned)
+        {
+            StopFrequentVoices();
+
+            PlayGhostSound(
+                stunInClip,
+                stunInVolume,
+                1f,
+                true
+            );
+        }
+        else
+        {
+            PlayGhostSound(
+                stunOutClip,
+                stunOutVolume,
+                1f,
+                true
+            );
+
+            if (playFrequentVoices)
+            {
+                StartFrequentVoices();
+            }
+        }
+    }
+
+    #endregion
+
+    #region Runtime Reference Assignment
+
+    /*
+     * Use this only if the ghost is spawned during gameplay.
+     * It allows another script to connect the spawned ghost
+     * without editing this component manually.
+     */
+    public void SetGhostReferences(
+        Transform newGhostTransform,
+        NavMeshAgent newGhostAgent)
+    {
+        StopFrequentVoices();
+        StopGhostStaticLoop();
+
+        ghostAgent = newGhostAgent;
+
+        if (newGhostTransform != null)
+        {
+            ghostTransform = newGhostTransform;
+        }
+        else if (newGhostAgent != null)
+        {
+            ghostTransform =
+                newGhostAgent.transform;
+        }
+        else
+        {
+            ghostTransform = null;
+        }
+
+        if (ghostTransform != null &&
+            isActiveAndEnabled)
+        {
+            StartGhostAudio();
+        }
+    }
+
+    #endregion
+
+    #region Shared Audio
 
     private void PlayGhostSound(
         AudioClip clip,
@@ -291,11 +629,23 @@ public class GhostAudioController : MonoBehaviour
 
         AudioSource source = audio.Source;
 
+        source.spatialBlend = 1f;
+
         source.rolloffMode =
             AudioRolloffMode.Logarithmic;
 
-        source.minDistance = minDistance;
-        source.maxDistance = maxDistance;
+        source.minDistance =
+            Mathf.Max(
+                0.01f,
+                minDistance
+            );
+
+        source.maxDistance =
+            Mathf.Max(
+                source.minDistance,
+                maxDistance
+            );
+
         source.dopplerLevel = 0f;
 
         if (followGhost)
@@ -312,26 +662,103 @@ public class GhostAudioController : MonoBehaviour
     private AudioClip GetRandomClip(
         AudioClip[] clips)
     {
-        if (clips == null || clips.Length == 0)
+        if (clips == null ||
+            clips.Length == 0)
         {
             return null;
         }
 
-        return clips[
-            Random.Range(0, clips.Length)
-        ];
+        int attempts = clips.Length;
+
+        while (attempts > 0)
+        {
+            AudioClip selectedClip =
+                clips[
+                    Random.Range(
+                        0,
+                        clips.Length
+                    )
+                ];
+
+            if (selectedClip != null)
+            {
+                return selectedClip;
+            }
+
+            attempts--;
+        }
+
+        return null;
     }
+
+    private bool HasValidClip(
+        AudioClip[] clips)
+    {
+        if (clips == null)
+        {
+            return false;
+        }
+
+        foreach (AudioClip clip in clips)
+        {
+            if (clip != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    #endregion
 
     private void OnDisable()
     {
         StopFrequentVoices();
+        StopGhostStaticLoop();
     }
 
     private void OnDestroy()
     {
+        StopFrequentVoices();
+        StopGhostStaticLoop();
+
         if (Instance == this)
         {
             Instance = null;
         }
+    }
+
+    private void OnValidate()
+    {
+        staticMinDistance =
+            Mathf.Max(
+                0.01f,
+                staticMinDistance
+            );
+
+        staticMaxDistance =
+            Mathf.Max(
+                staticMinDistance,
+                staticMaxDistance
+            );
+
+        minDistance =
+            Mathf.Max(
+                0.01f,
+                minDistance
+            );
+
+        maxDistance =
+            Mathf.Max(
+                minDistance,
+                maxDistance
+            );
+
+        maximumVoiceInterval =
+            Mathf.Max(
+                minimumVoiceInterval,
+                maximumVoiceInterval
+            );
     }
 }

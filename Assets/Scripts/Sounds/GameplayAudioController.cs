@@ -8,16 +8,6 @@ public class GameplayAudioController : MonoBehaviour
         private set;
     }
 
-    [Header("Door Sounds")]
-    [SerializeField]
-    private AudioClip doorOpenClip;
-
-    [SerializeField]
-    private AudioClip doorCloseClip;
-
-    [SerializeField, Range(0f, 1f)]
-    private float doorVolume = 0.8f;
-
     [Header("Battery Pickup")]
     [SerializeField]
     private AudioClip batteryPickupClip;
@@ -38,13 +28,7 @@ public class GameplayAudioController : MonoBehaviour
     [SerializeField, Range(0f, 1f)]
     private float buttonClickVolume = 0.8f;
 
-    [Header("3D Sound Distance")]
-    [SerializeField]
-    private float doorMinDistance = 1f;
-
-    [SerializeField]
-    private float doorMaxDistance = 18f;
-
+    [Header("Battery 3D Sound")]
     [SerializeField]
     private float pickupMinDistance = 1f;
 
@@ -56,52 +40,6 @@ public class GameplayAudioController : MonoBehaviour
     private void Awake()
     {
         Instance = this;
-    }
-
-    public void PlayDoorOpen(
-        Vector3 doorPosition)
-    {
-        PlayWorldSound(
-            doorOpenClip,
-            doorPosition,
-            doorVolume,
-            doorMinDistance,
-            doorMaxDistance
-        );
-    }
-
-    public void PlayDoorClose(
-        Vector3 doorPosition)
-    {
-        PlayWorldSound(
-            doorCloseClip,
-            doorPosition,
-            doorVolume,
-            doorMinDistance,
-            doorMaxDistance
-        );
-    }
-
-    public void PlayDoorOpenAtTransform(
-        Transform doorTransform)
-    {
-        if (doorTransform == null)
-        {
-            return;
-        }
-
-        PlayDoorOpen(doorTransform.position);
-    }
-
-    public void PlayDoorCloseAtTransform(
-        Transform doorTransform)
-    {
-        if (doorTransform == null)
-        {
-            return;
-        }
-
-        PlayDoorClose(doorTransform.position);
     }
 
     public void PlayBatteryPickup()
