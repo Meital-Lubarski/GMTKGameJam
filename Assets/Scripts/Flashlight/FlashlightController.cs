@@ -9,6 +9,13 @@ public class FlashlightController : MonoBehaviour
     [SerializeField] private Transform flashlightOrigin;
     [SerializeField] private Transform ghost;
 
+    [Tooltip(
+        "Anything that only belongs on screen while the light is lit: the beam " +
+        "model, a glow, a lens flare. They are switched on and off with the " +
+        "Light itself, so the flashlight is never seen shining while it is off."
+    )]
+    [SerializeField] private GameObject[] lightVisuals;
+
     [Header("New Input System")]
     [Tooltip("The Flashlight action from the Player map. Toggles the light.")]
     [SerializeField] private InputActionReference flashlightAction;
@@ -161,10 +168,28 @@ public class FlashlightController : MonoBehaviour
             flashlight.enabled = isOn;
         }
 
+        SetLightVisualsOn(isOn);
+
         // A switched off flashlight cannot keep revealing the ghost.
         if (!isOn)
         {
             ClearIlluminatedTarget();
+        }
+    }
+
+    private void SetLightVisualsOn(bool isOn)
+    {
+        if (lightVisuals == null)
+        {
+            return;
+        }
+
+        foreach (GameObject lightVisual in lightVisuals)
+        {
+            if (lightVisual != null)
+            {
+                lightVisual.SetActive(isOn);
+            }
         }
     }
 

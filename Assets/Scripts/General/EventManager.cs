@@ -10,6 +10,12 @@ namespace General
         public static Action<int> OnBarsChanged;
         public static Action OnBatteryEmpty;
 
+        // Raised when what the player is looking at changes: the interactable
+        // he could use right now, or null when there is nothing to use. Only
+        // sent when the answer actually changes, so a listener can simply
+        // show or hide itself on it.
+        public static Action<IInteractable> OnInteractableChanged;
+
         // Raised once when the ghost keeps the player inside its catch radius
         // long enough. The player loses (handled by the listener + ending scene).
         public static Action OnPlayerCaught;

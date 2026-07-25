@@ -48,13 +48,42 @@ public class BatteryPickup : MonoBehaviour, IInteractable
             FindClosestSpawnPointIndex();
     }
 
+    /*
+     * מאפשר איסוף אם:
+     * - סוללת הפנס לא מלאה
+     * או
+     * - הסטמינה לא מלאה
+     *
+     * אחרת אין טעם לאסוף את הסוללה.
+     *
+     * זה גם מה שקובע אם ה-UI של הלחיצה על E מוצג, כך שהשחקן לא מתבקש
+     * ללחוץ על כפתור שלא יעשה כלום.
+     */
+    public bool CanInteract
+    {
+        get
+        {
+            if (isRespawning || batteryManager == null)
+            {
+                return false;
+            }
+
+            bool flashlightBatteryIsFull =
+                batteryManager.CurrentCharge >=
+                batteryManager.MaxCharge;
+
+            bool staminaIsFull =
+                playerStamina == null ||
+                playerStamina.CurrentStamina >=
+                playerStamina.MaxStamina;
+
+            return !flashlightBatteryIsFull ||
+                   !staminaIsFull;
+        }
+    }
+
     public void Interact()
     {
-        if (isRespawning)
-        {
-            return;
-        }
-
         if (batteryManager == null)
         {
             Debug.LogError(
@@ -65,27 +94,7 @@ public class BatteryPickup : MonoBehaviour, IInteractable
             return;
         }
 
-        /*
-         * מאפשר איסוף אם:
-         * - סוללת הפנס לא מלאה
-         * או
-         * - הסטמינה לא מלאה
-         *
-         * אחרת אין טעם לאסוף את הסוללה.
-         */
-        bool flashlightBatteryIsFull =
-            batteryManager.CurrentCharge >=
-            batteryManager.MaxCharge;
-
-        bool staminaIsFull =
-            playerStamina == null ||
-            playerStamina.CurrentStamina >=
-            playerStamina.MaxStamina;
-
-        if (
-            flashlightBatteryIsFull &&
-            staminaIsFull
-        )
+        if (!CanInteract)
         {
             return;
         }
