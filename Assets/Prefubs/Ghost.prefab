@@ -134,6 +134,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Ghost.EnemyAi
   agent: {fileID: 7653995467378842191}
   player: {fileID: 0}
+  visualRenderers: []
   whatIsGround:
     serializedVersion: 2
     m_Bits: 128
@@ -148,6 +149,8 @@ MonoBehaviour:
   walkPointRange: 10
   sightRange: 20
   attackRange: 2
+  catchTime: 2
+  stunDelay: 2
 --- !u!1 &8323740178140748359
 GameObject:
   m_ObjectHideFlags: 0
@@ -158,6 +161,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1600522754069003555}
   - component: {fileID: 7941103674730345428}
+  - component: {fileID: 7263057060258996151}
+  - component: {fileID: 8236918626452192130}
   m_Layer: 8
   m_Name: GhostVisuals
   m_TagString: Untagged
@@ -239,3 +244,38 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!95 &7263057060258996151
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8323740178140748359}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: b013e46368944ec42b6aec495cfcb702, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &8236918626452192130
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8323740178140748359}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2fd5f2984cca324283267242d5ae92a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Ghost.GhostVisuals
+  animator: {fileID: 7263057060258996151}
