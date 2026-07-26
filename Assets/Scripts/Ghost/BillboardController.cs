@@ -10,27 +10,43 @@ public class BillboardController : MonoBehaviour
 
     private void Start()
     {
-        // Cache the Main Camera to avoid expensive Camera.main calls in LateUpdate
-        if (Camera.main != null)
-        {
-            _mainCameraTransform = Camera.main.transform;
-        }
-        else
-        {
-            Debug.LogWarning("BillboardSprite: Main Camera not found in the scene.");
-        }
-
         // Fallback in case the serialized field wasn't assigned in the inspector
         if (characterTransform == null)
         {
             characterTransform = transform;
         }
+
+        TryCacheCamera();
+    }
+
+    /// <summary>
+    /// Finds the main camera and holds on to it. False while there is still no
+    /// camera to find.
+    ///
+    /// Retried rather than settled once at startup. Whether the camera exists
+    /// by the time this runs depends on the order objects are started in, and
+    /// that order is not promised to be the same from one platform to the
+    /// next. Giving up on the first miss left the sprite turned whichever way
+    /// something else had last pointed it, for the whole of the run.
+    /// </summary>
+    private bool TryCacheCamera()
+    {
+        if (_mainCameraTransform != null) return true;
+
+        Camera mainCamera = Camera.main;
+
+        if (mainCamera == null) return false;
+
+        _mainCameraTransform = mainCamera.transform;
+
+        return true;
     }
 
     private void LateUpdate()
     {
-        // Safety check to ensure we have a camera reference
-        if (_mainCameraTransform == null) return;
+        // No camera yet, so there is nothing to turn towards. Checked again
+        // every frame until one turns up.
+        if (!TryCacheCamera()) return;
 
         /*
          * A sprite is drawn on its own XY plane and reads correctly when its

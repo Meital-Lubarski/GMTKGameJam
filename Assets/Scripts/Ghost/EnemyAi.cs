@@ -426,7 +426,15 @@ namespace Ghost
 
             if (directionToPlayer.sqrMagnitude < 0.0001f) return;
 
-            transform.rotation = Quaternion.LookRotation(directionToPlayer);
+            /*
+             * Turned away from him rather than towards him, which is the same
+             * way round the billboard puts her: a sprite reads correctly when
+             * its forward runs the same way the camera looks. Facing the
+             * player would show her back, and a double sided material draws
+             * that mirrored instead of dropping it - unreadable the moment
+             * there is text on her.
+             */
+            transform.rotation = Quaternion.LookRotation(-directionToPlayer);
         }
 
         private void HandleSpeedIncrease()
