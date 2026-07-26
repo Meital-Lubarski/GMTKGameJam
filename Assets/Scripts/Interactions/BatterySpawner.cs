@@ -1,24 +1,40 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Keeps one battery in the level at all times.
+/// Keeps a set number of batteries in the level at all times.
 ///
 /// It holds the kinds of battery that can turn up and the places they can turn
-/// up in, and puts one of each together every time the last one is taken: a
-/// battery picked at random from the list, at a spot picked at random from the
-/// points - never the spot it was just taken from, so the player always has
-/// somewhere new to walk to.
+/// up in, and puts one of each together every time one is taken: a battery
+/// picked at random from the list, at a spot picked at random from the points -
+/// never a spot that already has a battery on it, and never the spot the last
+/// one was taken from, so the player always has somewhere new to walk to.
 /// </summary>
 public class BatterySpawner : MonoBehaviour
 {
+    // How long to wait before trying again after a spawn could not be placed.
+    private const float RespawnRetryDelay = 1f;
+
     [Header("Batteries")]
     [Tooltip(
         "The kinds of battery that can appear. One is picked at random each " +
         "time. They differ in how many bars they are worth, so a longer list " +
-        "with more weak batteries in it makes weak ones more likely."
+        "with more weak batteries in it makes weak ones more likely.\n\n" +
+        "These must be prefab assets dragged from the Project window. An " +
+        "object that is already in the scene must never be used: the player " +
+        "can collect it, collecting destroys it, and this entry goes empty " +
+        "along with it."
     )]
     [SerializeField] private BatteryPickup[] batteryPrefabs;
+
+    [Tooltip(
+        "How many batteries lie in the level at the same time. Each one that " +
+        "is taken is replaced on its own, so this many are out there whenever " +
+        "the player is not inside a respawn delay. Cannot go above the number " +
+        "of spawn points, since two batteries are never put in one spot."
+    )]
+    [SerializeField, Min(1)] private int batteriesInLevel = 1;
 
     [Header("Spawn Points")]
     [Tooltip(
@@ -29,25 +45,43 @@ public class BatterySpawner : MonoBehaviour
 
     [Tooltip(
         "Never put the next battery where the last one was taken from. " +
-        "Ignored when there is only one point to choose from."
+        "Ignored when it would leave nowhere else to go."
     )]
     [SerializeField] private bool avoidLastSpawnPoint = true;
 
     [Header("Timing")]
-    [Tooltip("How long the level goes without a battery after one is taken.")]
+    [Tooltip("How long the level goes short a battery after one is taken.")]
     [SerializeField, Min(0f)] private float respawnDelay = 3f;
 
-    // Where the battery that is out there now came from, so the next one can
-    // be sent somewhere else.
+    // The batteries lying in the level right now, and the spawn point each one
+    // came from. The two lists are kept in step: entry i of one belongs with
+    // entry i of the other.
+    private readonly List<BatteryPickup> liveBatteries =
+        new List<BatteryPickup>();
+
+    private readonly List<int> occupiedSpawnPointIndices =
+        new List<int>();
+
+    // The entries of batteryPrefabs that were actually filled in, so an empty
+    // slot costs nothing at run time beyond one warning at startup.
+    private readonly List<BatteryPickup> usableBatteryPrefabs =
+        new List<BatteryPickup>();
+
+    // Reused by the spawn point search so picking a spot does not allocate.
+    private readonly List<int> freeSpawnPointIndices = new List<int>();
+
+    // Where the battery that was taken most recently came from, so the next
+    // one can be sent somewhere else.
     private int lastSpawnPointIndex = -1;
 
-    private BatteryPickup currentBattery;
+    // The list going empty mid-run is worth saying once, not every retry.
+    private bool hasReportedEmptyPrefabList;
 
     /// <summary>
-    /// The battery lying in the level right now, or null during the gap
-    /// between one being taken and the next appearing.
+    /// The batteries lying in the level right now. Shrinks as they are taken
+    /// and grows back as they are replaced.
     /// </summary>
-    public BatteryPickup CurrentBattery => currentBattery;
+    public IReadOnlyList<BatteryPickup> LiveBatteries => liveBatteries;
 
     private void Awake()
     {
@@ -65,7 +99,15 @@ public class BatterySpawner : MonoBehaviour
             return;
         }
 
-        SpawnBattery();
+        for (int i = 0; i < batteriesInLevel; i++)
+        {
+            // Nothing should stop the opening batteries from being placed, but
+            // one that fails is queued rather than quietly dropped.
+            if (!TrySpawnBattery())
+            {
+                StartCoroutine(SpawnAfterDelay());
+            }
+        }
     }
 
     /// <summary>
@@ -86,18 +128,22 @@ public class BatterySpawner : MonoBehaviour
 
     private bool HasEverythingItNeeds()
     {
-        if (batteryPrefabs == null || batteryPrefabs.Length == 0)
+        CollectUsableBatteryPrefabs();
+
+        if (usableBatteryPrefabs.Count == 0)
         {
             Debug.LogError(
-                "BatterySpawner has no battery prefabs, so no battery will " +
-                "ever appear.",
+                "BatterySpawner has no battery prefabs filled in, so no " +
+                "battery will ever appear.",
                 this
             );
 
             return false;
         }
 
-        if (spawnPoints == null || spawnPoints.Length == 0)
+        int usablePointCount = CountUsableSpawnPoints();
+
+        if (usablePointCount == 0)
         {
             Debug.LogError(
                 "BatterySpawner has no spawn points and no children to use " +
@@ -108,87 +154,213 @@ public class BatterySpawner : MonoBehaviour
             return false;
         }
 
-        return true;
-    }
-
-    private void SpawnBattery()
-    {
-        int spawnPointIndex = ChooseSpawnPointIndex();
-
-        Transform spawnPoint = spawnPoints[spawnPointIndex];
-
-        if (spawnPoint == null)
+        /*
+         * Two batteries are never put in the same spot, so asking for more
+         * batteries than there are places to put them can never be met. The
+         * ask is lowered rather than refused: a level with fewer batteries
+         * than intended still plays, one that throws on startup does not.
+         */
+        if (batteriesInLevel > usablePointCount)
         {
-            Debug.LogError(
-                $"BatterySpawner's spawn point at index {spawnPointIndex} is " +
-                "empty, so no battery could be placed.",
+            Debug.LogWarning(
+                $"BatterySpawner was asked for {batteriesInLevel} batteries " +
+                $"but only has {usablePointCount} usable spawn points. " +
+                $"Keeping {usablePointCount} in the level instead.",
                 this
             );
 
+            batteriesInLevel = usablePointCount;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Sorts the filled slots from the empty ones, and says which slots were
+    /// left empty so they can be found in the Inspector.
+    /// </summary>
+    private void CollectUsableBatteryPrefabs()
+    {
+        usableBatteryPrefabs.Clear();
+
+        if (batteryPrefabs == null)
+        {
             return;
         }
 
+        List<int> emptySlotIndices = null;
+
+        for (int i = 0; i < batteryPrefabs.Length; i++)
+        {
+            if (batteryPrefabs[i] == null)
+            {
+                emptySlotIndices ??= new List<int>();
+                emptySlotIndices.Add(i);
+
+                continue;
+            }
+
+            usableBatteryPrefabs.Add(batteryPrefabs[i]);
+        }
+
+        if (emptySlotIndices != null)
+        {
+            Debug.LogWarning(
+                "BatterySpawner has empty battery prefab slots at index " +
+                string.Join(", ", emptySlotIndices) +
+                ". They are skipped. An entry that was filled in the Editor " +
+                "and is empty here was a scene object rather than a prefab " +
+                "asset.",
+                this
+            );
+        }
+    }
+
+    private int CountUsableSpawnPoints()
+    {
+        if (spawnPoints == null)
+        {
+            return 0;
+        }
+
+        int count = 0;
+
+        foreach (Transform spawnPoint in spawnPoints)
+        {
+            if (spawnPoint != null)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// Places one battery. False when there was nothing to place or nowhere to
+    /// place it, which the caller is expected to come back from later rather
+    /// than treat as the end of the matter.
+    /// </summary>
+    private bool TrySpawnBattery()
+    {
         BatteryPickup batteryPrefab = ChooseBatteryPrefab();
 
         if (batteryPrefab == null)
         {
-            Debug.LogError(
-                "BatterySpawner picked an empty battery prefab. Check the " +
-                "list for missing entries.",
-                this
-            );
+            if (!hasReportedEmptyPrefabList)
+            {
+                hasReportedEmptyPrefabList = true;
 
-            return;
+                Debug.LogError(
+                    "BatterySpawner has run out of battery prefabs to pick " +
+                    "from, so no further battery can appear. Every entry it " +
+                    "was given is empty or has been destroyed.",
+                    this
+                );
+            }
+
+            return false;
         }
+
+        int spawnPointIndex = ChooseSpawnPointIndex();
+
+        if (spawnPointIndex < 0)
+        {
+            // Every point is taken at this instant. One frees up as soon as a
+            // battery is collected, so this is worth retrying, not reporting.
+            return false;
+        }
+
+        Transform spawnPoint = spawnPoints[spawnPointIndex];
 
         /*
          * Left unparented rather than put under the spawn point, so a point
          * that is moved, turned or scaled later cannot drag the battery that
          * is already lying there along with it.
          */
-        currentBattery = Instantiate(
+        BatteryPickup battery = Instantiate(
             batteryPrefab,
             spawnPoint.position,
             spawnPoint.rotation
         );
 
-        currentBattery.Collected += HandleBatteryCollected;
+        battery.Collected += HandleBatteryCollected;
 
-        lastSpawnPointIndex = spawnPointIndex;
+        liveBatteries.Add(battery);
+        occupiedSpawnPointIndices.Add(spawnPointIndex);
+
+        return true;
     }
 
+    /// <summary>
+    /// A free spot, or -1 when every point already holds a battery.
+    /// </summary>
     private int ChooseSpawnPointIndex()
     {
-        if (spawnPoints.Length == 1)
+        freeSpawnPointIndices.Clear();
+
+        for (int i = 0; i < spawnPoints.Length; i++)
         {
-            return 0;
+            if (spawnPoints[i] == null)
+            {
+                continue;
+            }
+
+            if (occupiedSpawnPointIndices.Contains(i))
+            {
+                continue;
+            }
+
+            freeSpawnPointIndices.Add(i);
         }
 
-        if (!avoidLastSpawnPoint || lastSpawnPointIndex < 0)
+        if (freeSpawnPointIndices.Count == 0)
         {
-            return Random.Range(0, spawnPoints.Length);
+            return -1;
         }
 
         /*
-         * Drawn from the points other than the last one and then stepped past
-         * it, rather than drawn again until it comes up different. One draw,
-         * every remaining point equally likely, and no chance of a run of bad
-         * luck taking a while.
+         * Sending the replacement straight back to the spot the player just
+         * emptied would undo the walk they were meant to make. It is only a
+         * preference: when that spot is the last one free, it is used anyway.
          */
-        int index = Random.Range(0, spawnPoints.Length - 1);
-
-        if (index >= lastSpawnPointIndex)
+        if (
+            avoidLastSpawnPoint &&
+            lastSpawnPointIndex >= 0 &&
+            freeSpawnPointIndices.Count > 1
+        )
         {
-            index++;
+            freeSpawnPointIndices.Remove(lastSpawnPointIndex);
         }
 
-        return index;
+        return freeSpawnPointIndices[
+            Random.Range(0, freeSpawnPointIndices.Count)
+        ];
     }
 
     private BatteryPickup ChooseBatteryPrefab()
     {
-        return batteryPrefabs[
-            Random.Range(0, batteryPrefabs.Length)
+        /*
+         * An entry can go empty part way through a run when a scene object was
+         * assigned instead of a prefab asset: collecting it destroys it, and
+         * the reference dies with it. Dropping it here keeps one bad entry
+         * from taking every later spawn down with it.
+         */
+        for (int i = usableBatteryPrefabs.Count - 1; i >= 0; i--)
+        {
+            if (usableBatteryPrefabs[i] == null)
+            {
+                usableBatteryPrefabs.RemoveAt(i);
+            }
+        }
+
+        if (usableBatteryPrefabs.Count == 0)
+        {
+            return null;
+        }
+
+        return usableBatteryPrefabs[
+            Random.Range(0, usableBatteryPrefabs.Count)
         ];
     }
 
@@ -197,7 +369,15 @@ public class BatterySpawner : MonoBehaviour
         // It destroys itself the moment it says this, so it is let go of here.
         battery.Collected -= HandleBatteryCollected;
 
-        currentBattery = null;
+        int liveIndex = liveBatteries.IndexOf(battery);
+
+        if (liveIndex >= 0)
+        {
+            lastSpawnPointIndex = occupiedSpawnPointIndices[liveIndex];
+
+            liveBatteries.RemoveAt(liveIndex);
+            occupiedSpawnPointIndices.RemoveAt(liveIndex);
+        }
 
         StartCoroutine(SpawnAfterDelay());
     }
@@ -209,7 +389,21 @@ public class BatterySpawner : MonoBehaviour
             yield return new WaitForSeconds(respawnDelay);
         }
 
-        SpawnBattery();
+        /*
+         * Kept at until it lands. A single failed attempt used to leave the
+         * level one battery short for the rest of the run, with nothing but a
+         * line in the console to say why.
+         */
+        while (!TrySpawnBattery())
+        {
+            if (usableBatteryPrefabs.Count == 0)
+            {
+                // Nothing left to place. Retrying would only spin.
+                yield break;
+            }
+
+            yield return new WaitForSeconds(RespawnRetryDelay);
+        }
     }
 
     private void OnDrawGizmosSelected()
