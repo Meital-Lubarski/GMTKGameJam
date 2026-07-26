@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Keeps a set number of batteries in the level at all times.
+/// Keeps a set number of batteries in the level at all times, and tightens
+/// that number as the player collects: every so many pickups the level starts
+/// holding one fewer, down to a floor, so power gets scarcer the longer the
+/// run goes.
 ///
 /// It holds the kinds of battery that can turn up and the places they can turn
 /// up in, and puts one of each together every time one is taken: a battery
@@ -35,6 +38,21 @@ public class BatterySpawner : MonoBehaviour
         "of spawn points, since two batteries are never put in one spot."
     )]
     [SerializeField, Min(1)] private int batteriesInLevel = 1;
+
+    [Header("Escalation")]
+    [Tooltip(
+        "Every this many batteries the player collects, the level keeps one " +
+        "fewer out from then on, so power gets scarcer the longer the run " +
+        "goes. Set to 0 to hold at Batteries In Level for the whole run."
+    )]
+    [SerializeField, Min(0)] private int batteriesCollectedPerDecrease = 2;
+
+    [Tooltip(
+        "The fewest batteries the level will ever go down to, however many " +
+        "the player has collected. Below one the player would be left with " +
+        "no way to recharge at all."
+    )]
+    [SerializeField, Min(1)] private int minBatteriesInLevel = 1;
 
     [Header("Spawn Points")]
     [Tooltip(
@@ -77,11 +95,32 @@ public class BatterySpawner : MonoBehaviour
     // The list going empty mid-run is worth saying once, not every retry.
     private bool hasReportedEmptyPrefabList;
 
+    /*
+     * How many batteries the level is currently trying to hold. It starts at
+     * batteriesInLevel and climbs as the player collects, which is why the
+     * serialized field is never used directly after Start.
+     */
+    private int targetBatteriesInLevel;
+
+    // Counted across the whole run, not reset when one is replaced.
+    private int batteriesCollectedCount;
+
     /// <summary>
     /// The batteries lying in the level right now. Shrinks as they are taken
     /// and grows back as they are replaced.
     /// </summary>
     public IReadOnlyList<BatteryPickup> LiveBatteries => liveBatteries;
+
+    /// <summary>
+    /// How many batteries the level is holding out for at this point in the
+    /// run. Starts at Batteries In Level and steps up as they are collected.
+    /// </summary>
+    public int TargetBatteriesInLevel => targetBatteriesInLevel;
+
+    /// <summary>
+    /// How many batteries the player has collected so far this run.
+    /// </summary>
+    public int BatteriesCollectedCount => batteriesCollectedCount;
 
     private void Awake()
     {
@@ -99,13 +138,15 @@ public class BatterySpawner : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < batteriesInLevel; i++)
+        targetBatteriesInLevel = batteriesInLevel;
+
+        for (int i = 0; i < targetBatteriesInLevel; i++)
         {
             // Nothing should stop the opening batteries from being placed, but
             // one that fails is queued rather than quietly dropped.
             if (!TrySpawnBattery())
             {
-                StartCoroutine(SpawnAfterDelay());
+                StartCoroutine(TopUpAfterDelay());
             }
         }
     }
@@ -170,6 +211,15 @@ public class BatterySpawner : MonoBehaviour
             );
 
             batteriesInLevel = usablePointCount;
+        }
+
+        /*
+         * A floor above the opening count would mean the level starts below
+         * its own lower limit, and the count could never come down at all.
+         */
+        if (minBatteriesInLevel > batteriesInLevel)
+        {
+            minBatteriesInLevel = batteriesInLevel;
         }
 
         return true;
@@ -379,10 +429,47 @@ public class BatterySpawner : MonoBehaviour
             occupiedSpawnPointIndices.RemoveAt(liveIndex);
         }
 
-        StartCoroutine(SpawnAfterDelay());
+        batteriesCollectedCount++;
+
+        LowerTargetIfDue();
+
+        StartCoroutine(TopUpAfterDelay());
     }
 
-    private IEnumerator SpawnAfterDelay()
+    /// <summary>
+    /// Steps the level down to holding one fewer battery once the player has
+    /// collected enough of them, down to the floor.
+    ///
+    /// Called before the top up, so the collection that triggers a step down
+    /// simply goes unreplaced rather than being replaced and then removed.
+    /// </summary>
+    private void LowerTargetIfDue()
+    {
+        if (batteriesCollectedPerDecrease <= 0)
+        {
+            return;
+        }
+
+        if (batteriesCollectedCount % batteriesCollectedPerDecrease != 0)
+        {
+            return;
+        }
+
+        if (targetBatteriesInLevel <= minBatteriesInLevel)
+        {
+            return;
+        }
+
+        targetBatteriesInLevel--;
+    }
+
+    /// <summary>
+    /// Fills the level back up to whatever it is currently holding out for.
+    /// Usually that is one battery - the replacement for the one just taken -
+    /// but on the collection that triggers a step down it is none at all, and
+    /// the level quietly comes out of that pickup one battery poorer.
+    /// </summary>
+    private IEnumerator TopUpAfterDelay()
     {
         if (respawnDelay > 0f)
         {
@@ -390,12 +477,21 @@ public class BatterySpawner : MonoBehaviour
         }
 
         /*
-         * Kept at until it lands. A single failed attempt used to leave the
+         * Kept at until they land. A single failed attempt used to leave the
          * level one battery short for the rest of the run, with nothing but a
          * line in the console to say why.
+         *
+         * Two of these can be in flight at once when batteries are taken in
+         * quick succession. That is safe: the count is re-read every pass, so
+         * whichever one gets there first simply ends the other one's work.
          */
-        while (!TrySpawnBattery())
+        while (liveBatteries.Count < targetBatteriesInLevel)
         {
+            if (TrySpawnBattery())
+            {
+                continue;
+            }
+
             if (usableBatteryPrefabs.Count == 0)
             {
                 // Nothing left to place. Retrying would only spin.

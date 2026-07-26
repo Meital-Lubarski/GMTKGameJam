@@ -11,6 +11,12 @@ namespace Ghost
         [SerializeField] private NavMeshAgent agent;
         [SerializeField] private Transform player;
 
+        [Tooltip(
+            "The player's BatteryManager, read to tell whether he still has " +
+            "any power left. Left empty it is found in the scene."
+        )]
+        [SerializeField] private BatteryManager batteryManager;
+
         [Header("Visibility")]
         [Tooltip(
             "Renderers kept hidden until the flashlight beam is on the ghost. " +
@@ -53,8 +59,23 @@ namespace Ghost
             "and gets away by leaving the radius or stunning her."
         )]
         [SerializeField] private float catchTime = 3f;
+
+        [Tooltip(
+            "The same window once the flashlight battery is completely flat. " +
+            "Zero means she takes him the moment she reaches him. With no " +
+            "power left there is no stun to buy the time back, so standing " +
+            "his ground stops being something the player can choose: a run " +
+            "on an empty battery is a run spent running."
+        )]
+        [SerializeField, Min(0f)] private float emptyBatteryCatchTime;
+
         private float _catchTimer;
         private bool _hasCaughtPlayer;
+
+        // The window the current stay inside the radius is being measured
+        // against. Held rather than read fresh so a battery that runs flat
+        // mid-approach can be noticed and announced.
+        private float _currentCatchTime;
 
         // Set while the ghost is on the player but has not caught him yet.
         private bool _isApproaching;
@@ -93,9 +114,24 @@ namespace Ghost
         /// </summary>
         public bool IsIlluminated => _isIlluminated;
 
+        /// <summary>
+        /// How long the player has to survive inside the catch radius as
+        /// things stand. A flat battery cuts it down to
+        /// <see cref="emptyBatteryCatchTime"/>: the beam is what a cornered
+        /// player buys his way out with, and with nothing left to run it, the
+        /// only answer to being reached is not being reached.
+        /// </summary>
+        private float EffectiveCatchTime =>
+            batteryManager != null && batteryManager.IsEmpty
+                ? emptyBatteryCatchTime
+                : catchTime;
+
         private void Awake()
         {
             if (agent == null) agent = GetComponent<NavMeshAgent>();
+
+            if (batteryManager == null)
+                batteryManager = FindFirstObjectByType<BatteryManager>();
 
             if (visualRenderers == null || visualRenderers.Length == 0)
                 visualRenderers = CollectOwnRenderers();
@@ -150,7 +186,8 @@ namespace Ghost
         /// <summary>
         /// The window between reaching the player and catching him. Leaving the
         /// radius ends it with the player safe, and so does a stun; only staying
-        /// inside it for the whole of <see cref="catchTime"/> gets him caught.
+        /// inside it for the whole of <see cref="EffectiveCatchTime"/> gets him
+        /// caught - and on a flat battery that window can be nothing at all.
         /// </summary>
         private void HandleApproach()
         {
@@ -164,9 +201,22 @@ namespace Ghost
 
             SetApproaching(true);
 
+            /*
+             * The battery can run flat while he is already inside the radius,
+             * which shortens the window out from under him. Anything showing
+             * the countdown is told again, so what is on screen cannot drift
+             * away from the window actually being measured.
+             */
+            if (!Mathf.Approximately(_currentCatchTime, EffectiveCatchTime))
+            {
+                _currentCatchTime = EffectiveCatchTime;
+
+                EventManager.OnGhostApproachStarted?.Invoke(_currentCatchTime);
+            }
+
             _catchTimer += Time.deltaTime;
 
-            if (_catchTimer >= catchTime)
+            if (_catchTimer >= _currentCatchTime)
                 CatchPlayer();
         }
 
@@ -185,7 +235,11 @@ namespace Ghost
             _catchTimer = 0f;
 
             if (isApproaching)
-                EventManager.OnGhostApproachStarted?.Invoke(catchTime);
+            {
+                _currentCatchTime = EffectiveCatchTime;
+
+                EventManager.OnGhostApproachStarted?.Invoke(_currentCatchTime);
+            }
             else
                 EventManager.OnGhostApproachEnded?.Invoke();
         }

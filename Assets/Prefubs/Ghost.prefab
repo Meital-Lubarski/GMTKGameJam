@@ -489,13 +489,12 @@ MonoBehaviour:
   whatIsPlayer:
     serializedVersion: 2
     m_Bits: 64
-  health: 4
   initialSpeed: 3
   maxSpeed: 14
   speedIncreaseRate: 1
   speedIncreaseInterval: 4
-  walkPointRange: 10
-  sightRange: 20
+  walkPointRange: 15
+  sightRange: 25
   attackRange: 2
   delayCatchAnimation: 0
   catchTime: 3
