@@ -22,6 +22,12 @@ namespace General
         // show or hide itself on it.
         public static Action<IInteractable> OnInteractableChanged;
 
+        // Raised when the kill animation the catch started has played out.
+        // The catch itself is over long before this: it is what lets the
+        // Game Over screen wait for the ghost to finish with him rather than
+        // landing on top of her while she is still doing it.
+        public static Action OnCaughtAnimationFinished;
+
         // Raised once when the ghost keeps the player inside its catch radius
         // long enough. The player loses (handled by the listener + ending scene).
         public static Action OnPlayerCaught;
@@ -57,6 +63,7 @@ namespace General
             OnInteractableChanged = null;
 
             OnPlayerCaught = null;
+            OnCaughtAnimationFinished = null;
 
             OnGhostStunned = null;
             OnGhostStunEnded = null;

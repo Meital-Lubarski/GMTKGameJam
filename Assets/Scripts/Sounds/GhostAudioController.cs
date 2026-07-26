@@ -1,6 +1,16 @@
-using System.Collections;
+using Ghost;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
+/// <summary>
+/// The ghost's voice. It lives on the AudioManager, which outlives every
+/// scene, while the ghost it is about does not: she is built again with each
+/// run and thrown away with it.
+///
+/// So the ghost is not held onto across a scene change. She is looked for
+/// again every time a scene is loaded, and the loop that follows her around is
+/// started over on the new one.
+/// </summary>
 public class GhostAudioController : MonoBehaviour
 {
     public static GhostAudioController Instance
@@ -11,22 +21,36 @@ public class GhostAudioController : MonoBehaviour
 
     [Header("Ghost Reference")]
     [Tooltip(
-        "Drag the main active Ghost object here, " +
-        "not GhostVisuals or another child object."
+        "The ghost the proximity sound follows. Leave this empty when the " +
+        "AudioManager and the ghost are in different scenes: she is found in " +
+        "whichever scene is loaded, which is the only thing that can work " +
+        "across a scene change."
     )]
     [SerializeField]
     private Transform ghostTransform;
 
     [Header("Ghost Proximity Loop")]
+    [Tooltip(
+        "Continuous looping sound that is loud when the ghost " +
+        "is close and quiet when the ghost is far away."
+    )]
     [SerializeField]
     private AudioClip ghostProximityLoopClip;
 
     [SerializeField, Range(0f, 1f)]
-    private float ghostProximityVolume = 1f;
+    private float ghostProximityVolume = 0.8f;
 
+    [Tooltip(
+        "Inside this distance, the proximity sound is heard " +
+        "at its full configured volume."
+    )]
     [SerializeField, Min(0.01f)]
-    private float proximityMinDistance = 3f;
+    private float proximityMinDistance = 2f;
 
+    [Tooltip(
+        "At this distance and beyond, the proximity sound " +
+        "is heard at its quietest level."
+    )]
     [SerializeField, Min(0.01f)]
     private float proximityMaxDistance = 35f;
 
@@ -57,17 +81,20 @@ public class GhostAudioController : MonoBehaviour
     private float stunOutVolume = 1f;
 
     [Header("Event Sound Distance")]
+    [Tooltip(
+        "3D distance settings used by attack, choking " +
+        "and stun sounds."
+    )]
     [SerializeField, Min(0.01f)]
-    private float eventMinDistance = 3f;
+    private float eventMinDistance = 2f;
 
     [SerializeField, Min(0.01f)]
     private float eventMaxDistance = 35f;
 
     private AudioSourcePoolable ghostProximityLoop;
 
-    private Coroutine initializationCoroutine;
-
     private bool isStunned;
+    private bool hasStarted;
 
     public bool IsStunned => isStunned;
 
@@ -80,118 +107,98 @@ public class GhostAudioController : MonoBehaviour
                 "More than one GhostAudioController exists.",
                 this
             );
+
+            return;
         }
 
         Instance = this;
     }
 
-    private void OnEnable()
+    private void Start()
     {
-        initializationCoroutine =
-            StartCoroutine(InitializeAudioRoutine());
+        hasStarted = true;
+
+        StartGhostAudio();
     }
 
-    private IEnumerator InitializeAudioRoutine()
+    private void OnEnable()
     {
-        const int maximumFramesToWait = 180;
-        int waitedFrames = 0;
+        SceneManager.sceneLoaded += HandleSceneLoaded;
 
-        while (
-            (
-                SoundManager.Instance == null ||
-                AudioPool.Instance == null
-            ) &&
-            waitedFrames < maximumFramesToWait
-        )
+        /*
+         * Start runs only once. This restarts the loop if
+         * the component is disabled and enabled afterward.
+         */
+        if (hasStarted)
         {
-            waitedFrames++;
-            yield return null;
+            StartGhostAudio();
         }
+    }
 
-        initializationCoroutine = null;
+    /// <summary>
+    /// A new scene means a new ghost, and the one this was following is gone
+    /// along with the sound that was hanging off her. Both are found again.
+    /// </summary>
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        StopGhostProximityLoop();
 
-        if (SoundManager.Instance == null)
+        ghostTransform = null;
+
+        StartGhostAudio();
+    }
+
+    private void StartGhostAudio()
+    {
+        if (!ResolveGhostTransform())
         {
-            Debug.LogError(
-                "GhostAudioController could not find SoundManager.",
-                this
-            );
-
-            yield break;
-        }
-
-        if (AudioPool.Instance == null)
-        {
-            Debug.LogError(
-                "GhostAudioController could not find AudioPool.",
-                this
-            );
-
-            yield break;
-        }
-
-        if (ghostTransform == null)
-        {
-            Debug.LogError(
-                "GhostAudioController has no Ghost Transform assigned.",
-                this
-            );
-
-            yield break;
-        }
-
-        if (!ghostTransform.gameObject.activeInHierarchy)
-        {
-            Debug.LogError(
-                "The assigned Ghost Transform is inactive. " +
-                "Assign the main active Ghost object instead.",
-                ghostTransform
-            );
-
-            yield break;
+            return;
         }
 
         StartGhostProximityLoop();
     }
 
+    /// <summary>
+    /// The ghost that is in the game right now. One dragged in by hand is
+    /// used as it stands; otherwise she is looked for, which is what lets this
+    /// sit in one scene and speak for a ghost in another.
+    /// </summary>
+    private bool ResolveGhostTransform()
+    {
+        if (ghostTransform != null)
+        {
+            return true;
+        }
+
+        EnemyAi ghost = FindFirstObjectByType<EnemyAi>();
+
+        if (ghost != null)
+        {
+            ghostTransform = ghost.transform;
+        }
+
+        return ghostTransform != null;
+    }
+
+    #region Proximity Loop
+
     public void StartGhostProximityLoop()
     {
-        if (ghostProximityLoop != null)
+        if (ghostProximityLoop != null ||
+            ghostProximityLoopClip == null ||
+            ghostTransform == null ||
+            SoundManager.Instance == null)
         {
             return;
         }
 
-        if (ghostProximityLoopClip == null)
-        {
-            Debug.LogError(
-                "No Ghost Proximity Loop Clip is assigned.",
-                this
-            );
-
-            return;
-        }
-
-        if (ghostTransform == null)
-        {
-            Debug.LogError(
-                "No Ghost Transform is assigned.",
-                this
-            );
-
-            return;
-        }
-
-        if (SoundManager.Instance == null ||
-            AudioPool.Instance == null)
-        {
-            Debug.LogError(
-                "The audio system is not ready.",
-                this
-            );
-
-            return;
-        }
-
+        /*
+         * PlayLoopAtPosition makes the pooled AudioSource
+         * a child of the ghost Transform.
+         *
+         * Therefore, when the AI moves the ghost,
+         * the AudioSource moves together with it.
+         */
         ghostProximityLoop =
             SoundManager.Instance.PlayLoopAtPosition(
                 ghostProximityLoopClip,
@@ -201,11 +208,6 @@ public class GhostAudioController : MonoBehaviour
 
         if (ghostProximityLoop == null)
         {
-            Debug.LogError(
-                "The Ghost Proximity Loop could not be created.",
-                this
-            );
-
             return;
         }
 
@@ -213,11 +215,6 @@ public class GhostAudioController : MonoBehaviour
             ghostProximityLoop.Source,
             proximityMinDistance,
             proximityMaxDistance
-        );
-
-        Debug.Log(
-            "Ghost proximity loop started successfully.",
-            ghostTransform
         );
     }
 
@@ -237,6 +234,10 @@ public class GhostAudioController : MonoBehaviour
 
         ghostProximityLoop = null;
     }
+
+    #endregion
+
+    #region Attack Sounds
 
     public void PlayAttackStarted()
     {
@@ -263,6 +264,10 @@ public class GhostAudioController : MonoBehaviour
             chokingVolume
         );
     }
+
+    #endregion
+
+    #region Stun Sounds
 
     public void EnterStun()
     {
@@ -299,6 +304,14 @@ public class GhostAudioController : MonoBehaviour
         }
     }
 
+    #endregion
+
+    #region Runtime Ghost Assignment
+
+    /// <summary>
+    /// Use this when the ghost is spawned during gameplay
+    /// instead of already existing in the scene.
+    /// </summary>
     public void SetGhostTransform(
         Transform newGhostTransform)
     {
@@ -309,19 +322,13 @@ public class GhostAudioController : MonoBehaviour
         if (ghostTransform != null &&
             isActiveAndEnabled)
         {
-            if (initializationCoroutine != null)
-            {
-                StopCoroutine(
-                    initializationCoroutine
-                );
-            }
-
-            initializationCoroutine =
-                StartCoroutine(
-                    InitializeAudioRoutine()
-                );
+            StartGhostProximityLoop();
         }
     }
+
+    #endregion
+
+    #region Shared Audio
 
     private void PlayGhostEventSound(
         AudioClip clip,
@@ -346,6 +353,10 @@ public class GhostAudioController : MonoBehaviour
             return;
         }
 
+        /*
+         * Attach the event sound to the ghost so that
+         * it follows the ghost while the clip is playing.
+         */
         audio.transform.SetParent(
             ghostTransform
         );
@@ -382,6 +393,11 @@ public class GhostAudioController : MonoBehaviour
                 maximumDistance
             );
 
+        /*
+         * Fully 3D audio.
+         * Unity calculates the distance from this AudioSource
+         * to the AudioListener on the player's camera.
+         */
         source.spatialBlend = 1f;
 
         source.rolloffMode =
@@ -396,16 +412,11 @@ public class GhostAudioController : MonoBehaviour
         source.dopplerLevel = 0f;
     }
 
+    #endregion
+
     private void OnDisable()
     {
-        if (initializationCoroutine != null)
-        {
-            StopCoroutine(
-                initializationCoroutine
-            );
-
-            initializationCoroutine = null;
-        }
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
 
         StopGhostProximityLoop();
     }

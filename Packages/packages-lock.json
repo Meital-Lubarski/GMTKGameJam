@@ -264,6 +264,12 @@
       },
       "url": "https://packages.unity.com"
     },
+    "com.unitytools.one-click-auto-builder": {
+      "version": "file:C:/Users/may10/Desktop/UnityTools/Builder",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {}
+    },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
       "depth": 0,

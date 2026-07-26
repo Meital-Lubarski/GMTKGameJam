@@ -1,34 +1,45 @@
-using System.Collections;
+using System;
 using UnityEngine;
 
+/// <summary>
+/// A battery lying on the floor. Picking it up tops up the flashlight and the
+/// player's breath, and takes it out of the world.
+///
+/// It knows nothing about where the next one comes from: it announces that it
+/// has been taken through <see cref="Collected"/> and leaves. The
+/// <see cref="BatterySpawner"/> listens and decides what appears next and
+/// where. That is what lets several kinds of battery exist - they differ only
+/// in how many bars they are worth - without any of them knowing that the
+/// others exist.
+/// </summary>
 [RequireComponent(typeof(Collider))]
 public class BatteryPickup : MonoBehaviour, IInteractable
 {
     [Header("Battery Recharge")]
+    [Tooltip(
+        "How many bars this battery is worth. This is what tells one kind of " +
+        "battery from another."
+    )]
     [SerializeField, Min(1)] private int barsToRecharge = 1;
-
-    [Header("Respawn")]
-    [Tooltip("Possible positions where this battery can reappear.")]
-    [SerializeField] private Transform[] spawnPoints;
-
-    [Tooltip("How long the battery stays hidden after collection.")]
-    [SerializeField, Min(0f)] private float respawnDelay = 3f;
-
-    [Tooltip("Avoid respawning at the same point when possible.")]
-    [SerializeField] private bool avoidCurrentSpawnPoint = true;
 
     [Header("Sound")]
     [SerializeField] private AudioClip pickupSound;
     [SerializeField, Range(0f, 1f)] private float pickupVolume = 1f;
 
+    /// <summary>
+    /// Raised once, the moment this battery is taken. It is destroyed straight
+    /// afterwards, so a listener must not hold on to it.
+    /// </summary>
+    public event Action<BatteryPickup> Collected;
+
+    public int BarsToRecharge => barsToRecharge;
+
     private BatteryManager batteryManager;
     private PlayerStamina playerStamina;
 
-    private Collider pickupCollider;
-    private Renderer[] pickupRenderers;
-
-    private bool isRespawning;
-    private int currentSpawnPointIndex = -1;
+    // A battery can only be taken once, however many times the key is pressed
+    // in the frame before it is gone.
+    private bool wasCollected;
 
     private void Awake()
     {
@@ -37,15 +48,6 @@ public class BatteryPickup : MonoBehaviour, IInteractable
 
         playerStamina =
             FindFirstObjectByType<PlayerStamina>();
-
-        pickupCollider =
-            GetComponent<Collider>();
-
-        pickupRenderers =
-            GetComponentsInChildren<Renderer>(true);
-
-        currentSpawnPointIndex =
-            FindClosestSpawnPointIndex();
     }
 
     /*
@@ -63,7 +65,7 @@ public class BatteryPickup : MonoBehaviour, IInteractable
     {
         get
         {
-            if (isRespawning || batteryManager == null)
+            if (wasCollected || batteryManager == null)
             {
                 return false;
             }
@@ -99,6 +101,8 @@ public class BatteryPickup : MonoBehaviour, IInteractable
             return;
         }
 
+        wasCollected = true;
+
         batteryManager.RechargeBars(
             barsToRecharge
         );
@@ -116,6 +120,10 @@ public class BatteryPickup : MonoBehaviour, IInteractable
             );
         }
 
+        /*
+         * The sound is played through the SoundManager rather than from an
+         * AudioSource here, so it carries on after this battery is gone.
+         */
         if (
             pickupSound != null &&
             SoundManager.Instance != null
@@ -127,163 +135,8 @@ public class BatteryPickup : MonoBehaviour, IInteractable
             );
         }
 
-        StartCoroutine(
-            RespawnRoutine()
-        );
-    }
+        Collected?.Invoke(this);
 
-    private IEnumerator RespawnRoutine()
-    {
-        isRespawning = true;
-
-        SetPickupVisible(false);
-
-        if (respawnDelay > 0f)
-        {
-            yield return new WaitForSeconds(
-                respawnDelay
-            );
-        }
-
-        MoveToRandomSpawnPoint();
-
-        SetPickupVisible(true);
-
-        isRespawning = false;
-    }
-
-    private void MoveToRandomSpawnPoint()
-    {
-        if (
-            spawnPoints == null ||
-            spawnPoints.Length == 0
-        )
-        {
-            Debug.LogWarning(
-                "BatteryPickup has no spawn points assigned.",
-                this
-            );
-
-            return;
-        }
-
-        int nextIndex =
-            GetRandomSpawnPointIndex();
-
-        Transform nextSpawnPoint =
-            spawnPoints[nextIndex];
-
-        if (nextSpawnPoint == null)
-        {
-            Debug.LogWarning(
-                $"Spawn point at index {nextIndex} is null.",
-                this
-            );
-
-            return;
-        }
-
-        transform.SetPositionAndRotation(
-            nextSpawnPoint.position,
-            nextSpawnPoint.rotation
-        );
-
-        currentSpawnPointIndex =
-            nextIndex;
-    }
-
-    private int GetRandomSpawnPointIndex()
-    {
-        if (spawnPoints.Length == 1)
-        {
-            return 0;
-        }
-
-        int nextIndex;
-
-        do
-        {
-            nextIndex = Random.Range(
-                0,
-                spawnPoints.Length
-            );
-        }
-        while (
-            avoidCurrentSpawnPoint &&
-            nextIndex ==
-            currentSpawnPointIndex
-        );
-
-        return nextIndex;
-    }
-
-    private int FindClosestSpawnPointIndex()
-    {
-        if (
-            spawnPoints == null ||
-            spawnPoints.Length == 0
-        )
-        {
-            return -1;
-        }
-
-        int closestIndex = -1;
-        float closestDistance =
-            float.MaxValue;
-
-        for (
-            int i = 0;
-            i < spawnPoints.Length;
-            i++
-        )
-        {
-            if (spawnPoints[i] == null)
-            {
-                continue;
-            }
-
-            float distance =
-                Vector3.SqrMagnitude(
-                    transform.position -
-                    spawnPoints[i].position
-                );
-
-            if (
-                distance <
-                closestDistance
-            )
-            {
-                closestDistance =
-                    distance;
-
-                closestIndex =
-                    i;
-            }
-        }
-
-        return closestIndex;
-    }
-
-    private void SetPickupVisible(
-        bool isVisible
-    )
-    {
-        if (pickupCollider != null)
-        {
-            pickupCollider.enabled =
-                isVisible;
-        }
-
-        foreach (
-            Renderer pickupRenderer
-            in pickupRenderers
-        )
-        {
-            if (pickupRenderer != null)
-            {
-                pickupRenderer.enabled =
-                    isVisible;
-            }
-        }
+        Destroy(gameObject);
     }
 }

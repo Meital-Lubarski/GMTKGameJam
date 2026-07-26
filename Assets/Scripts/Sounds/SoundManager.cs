@@ -26,8 +26,12 @@ public class SoundManager : MonoSingleton<SoundManager>
             return null;
         }
 
-        AudioSourcePoolable pooledAudio = AudioPool.Instance.Get();
-        AudioSource source = pooledAudio.Source;
+        AudioSourcePoolable pooledAudio = TakePooledAudio();
+
+        if (pooledAudio == null)
+        {
+            return null;
+        }
 
         ConfigureSource(
             pooledAudio,
@@ -38,7 +42,7 @@ public class SoundManager : MonoSingleton<SoundManager>
             0f
         );
 
-        source.Play();
+        pooledAudio.Source.Play();
 
         StartCoroutine(ReturnAfterPlaying(pooledAudio));
 
@@ -56,8 +60,12 @@ public class SoundManager : MonoSingleton<SoundManager>
             return null;
         }
 
-        AudioSourcePoolable pooledAudio = AudioPool.Instance.Get();
-        AudioSource source = pooledAudio.Source;
+        AudioSourcePoolable pooledAudio = TakePooledAudio();
+
+        if (pooledAudio == null)
+        {
+            return null;
+        }
 
         pooledAudio.transform.position = position;
 
@@ -70,7 +78,7 @@ public class SoundManager : MonoSingleton<SoundManager>
             1f
         );
 
-        source.Play();
+        pooledAudio.Source.Play();
 
         StartCoroutine(ReturnAfterPlaying(pooledAudio));
 
@@ -92,7 +100,12 @@ public class SoundManager : MonoSingleton<SoundManager>
             return null;
         }
 
-        AudioSourcePoolable pooledAudio = AudioPool.Instance.Get();
+        AudioSourcePoolable pooledAudio = TakePooledAudio();
+
+        if (pooledAudio == null)
+        {
+            return null;
+        }
 
         ConfigureSource(
             pooledAudio,
@@ -120,7 +133,12 @@ public class SoundManager : MonoSingleton<SoundManager>
             return null;
         }
 
-        AudioSourcePoolable pooledAudio = AudioPool.Instance.Get();
+        AudioSourcePoolable pooledAudio = TakePooledAudio();
+
+        if (pooledAudio == null)
+        {
+            return null;
+        }
 
         if (followTarget != null)
         {
@@ -242,11 +260,56 @@ public class SoundManager : MonoSingleton<SoundManager>
             return;
         }
 
-        pooledAudio.Source.Stop();
-        pooledAudio.transform.SetParent(AudioPool.Instance.transform);
+        if (pooledAudio.Source != null)
+        {
+            pooledAudio.Source.Stop();
+        }
+
+        AudioPool pool = AudioPool.Instance;
+
+        /*
+         * There is nowhere to put it back. This is the game shutting down, or
+         * the pool having been taken away, and neither is worth crashing over:
+         * the sound is stopped and the object is simply let go of.
+         */
+        if (pool == null)
+        {
+            return;
+        }
+
+        pooledAudio.transform.SetParent(pool.transform);
         pooledAudio.transform.localPosition = Vector3.zero;
 
-        AudioPool.Instance.Return(pooledAudio);
+        pool.Return(pooledAudio);
+    }
+
+    /// <summary>
+    /// One free audio source, or null when there is no pool to take it from.
+    /// Every way of playing a sound goes through here, so none of them has to
+    /// find out the hard way that the pool is gone.
+    /// </summary>
+    private AudioSourcePoolable TakePooledAudio()
+    {
+        AudioPool pool = AudioPool.Instance;
+
+        if (pool == null)
+        {
+            Debug.LogError(
+                "No AudioPool exists, so nothing can be played. The " +
+                "AudioManager holding it is missing from the game."
+            );
+
+            return null;
+        }
+
+        AudioSourcePoolable pooledAudio = pool.Get();
+
+        if (pooledAudio == null || pooledAudio.Source == null)
+        {
+            return null;
+        }
+
+        return pooledAudio;
     }
 
     private bool CanPlay(AudioClip clip)
@@ -255,15 +318,6 @@ public class SoundManager : MonoSingleton<SoundManager>
         {
             Debug.LogWarning(
                 "SoundManager received a null AudioClip."
-            );
-
-            return false;
-        }
-
-        if (AudioPool.Instance == null)
-        {
-            Debug.LogError(
-                "No AudioPool exists in the current scene."
             );
 
             return false;

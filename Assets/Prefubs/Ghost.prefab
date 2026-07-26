@@ -490,13 +490,14 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   health: 4
-  initialSpeed: 2
-  maxSpeed: 5
-  speedIncreaseRate: 0.5
-  speedIncreaseInterval: 5
+  initialSpeed: 3
+  maxSpeed: 14
+  speedIncreaseRate: 1
+  speedIncreaseInterval: 4
   walkPointRange: 10
   sightRange: 20
   attackRange: 2
+  delayCatchAnimation: 0
   catchTime: 3
   stunDelay: 2
 --- !u!1 &8323740178140748359
@@ -627,3 +628,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Ghost.GhostVisuals
   animator: {fileID: 7263057060258996151}
+  killStateTag: Kill
+  killAnimationMaxSeconds: 1.8

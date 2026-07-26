@@ -22,9 +22,6 @@ namespace Ghost
         [SerializeField] private LayerMask whatIsGround;
         [SerializeField] private LayerMask whatIsPlayer;
 
-        [Header("Stats")]
-        [SerializeField] private float health;
-
         // Speed Management
         [Header("Speed Settings")]
         [SerializeField] private float initialSpeed = 2f;
@@ -47,6 +44,7 @@ namespace Ghost
         private bool _playerInSightRange;
         private bool _playerInAttackRange;
 
+        [SerializeField] private float delayCatchAnimation;
         // Catching
         [Header("Catching")]
         [Tooltip(

@@ -1,7 +1,14 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
+/// <summary>
+/// The player's own noises. Like the ghost's, they are made from the
+/// AudioManager, which outlives every scene, while the player it listens to is
+/// built again with each run - so he is looked for again every time a scene
+/// is loaded rather than held onto across one.
+/// </summary>
 public class PlayerAudioController : MonoBehaviour
 {
     public static PlayerAudioController Instance
@@ -11,6 +18,11 @@ public class PlayerAudioController : MonoBehaviour
     }
 
     [Header("Player References")]
+    [Tooltip(
+        "The player this listens to. Leave it empty when the AudioManager " +
+        "and the player are in different scenes: he is found in whichever " +
+        "scene is loaded, which is the only thing that survives a scene change."
+    )]
     [SerializeField]
     private CharacterController characterController;
 
@@ -81,9 +93,55 @@ public class PlayerAudioController : MonoBehaviour
     private bool isLowStamina;
     private bool isDead;
 
+    /*
+     * A second one leaves the first alone rather than taking its place: the
+     * duplicate is on its way out, and pointing everyone at it would leave
+     * them holding something that is about to be destroyed.
+     */
     private void Awake()
     {
+        if (Instance != null &&
+            Instance != this)
+        {
+            return;
+        }
+
         Instance = this;
+    }
+
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+
+        ResolveCharacterController();
+    }
+
+    /// <summary>
+    /// A new scene means a new player, and the one this was listening to is
+    /// gone. The run also starts over, so nothing is carried in from the last.
+    /// </summary>
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        characterController = null;
+        isDead = false;
+
+        ResolveCharacterController();
+    }
+
+    /// <summary>
+    /// The player who is in the game right now. One dragged in by hand is used
+    /// as it stands; otherwise he is looked for, which is what lets this sit
+    /// in one scene and speak for a player in another.
+    /// </summary>
+    private void ResolveCharacterController()
+    {
+        if (characterController != null)
+        {
+            return;
+        }
+
+        characterController =
+            FindFirstObjectByType<CharacterController>();
     }
 
     private void Update()
@@ -423,6 +481,8 @@ public class PlayerAudioController : MonoBehaviour
 
     private void OnDisable()
     {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+
         StopMovementLoops();
     }
 
