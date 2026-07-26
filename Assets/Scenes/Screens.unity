@@ -219,22 +219,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 1111363010129432953, guid: 2bab214c789aa834a8ff92308426fd32, type: 3}
-      propertyPath: playClockOnStart
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1111363010129432953, guid: 2bab214c789aa834a8ff92308426fd32, type: 3}
-      propertyPath: playAmbienceOnStart
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 1790809078729914408, guid: 2bab214c789aa834a8ff92308426fd32, type: 3}
-      propertyPath: m_Enabled
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 1975521478169096604, guid: 2bab214c789aa834a8ff92308426fd32, type: 3}
-      propertyPath: m_Enabled
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 2291754393642247252, guid: 2bab214c789aa834a8ff92308426fd32, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

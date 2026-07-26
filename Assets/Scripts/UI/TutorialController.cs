@@ -1,6 +1,7 @@
 using System.Collections;
 using General;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -22,6 +23,12 @@ public class TutorialController : MonoBehaviour
 
     [Header("Screens Scene Camera - Optional")]
     [SerializeField] private Camera screensCamera;
+
+    [Tooltip(
+        "The menu scene's Event System. Left empty, whichever one is active " +
+        "when the game starts loading is used."
+    )]
+    [SerializeField] private EventSystem screensEventSystem;
 
     private const string GameSceneName = GameScenes.Game;
     private const string ScreensSceneName = GameScenes.Menu;
@@ -78,7 +85,15 @@ public class TutorialController : MonoBehaviour
     {
         Time.timeScale = 1f;
 
-        
+        /*
+         * The menu's Event System steps aside before the game scene turns up
+         * with its own. Both scenes are loaded together for a moment, and two
+         * of them at once is a warning from Unity and one that does nothing.
+         * The menu has had its last click by now: the button that got here was
+         * switched off on the way in.
+         */
+        SetScreensEventSystemEnabled(false);
+
         AsyncOperation loadOperation = SceneManager.LoadSceneAsync(
             GameSceneName,
             LoadSceneMode.Additive
@@ -90,6 +105,9 @@ public class TutorialController : MonoBehaviour
                 $"TutorialController: Could not start loading {GameSceneName}.",
                 this
             );
+
+            // The menu is staying after all, so it needs its clicks back.
+            SetScreensEventSystemEnabled(true);
 
             isStartingGame = false;
             flashlightButton.interactable = true;
@@ -109,6 +127,8 @@ public class TutorialController : MonoBehaviour
                 $"TutorialController: Scene {GameSceneName} was not loaded.",
                 this
             );
+
+            SetScreensEventSystemEnabled(true);
 
             isStartingGame = false;
             flashlightButton.interactable = true;
@@ -132,6 +152,23 @@ public class TutorialController : MonoBehaviour
         if (screensScene.IsValid() && screensScene.isLoaded)
         {
             SceneManager.UnloadSceneAsync(screensScene);
+        }
+    }
+
+    /// <summary>
+    /// The menu's own Event System, remembered the first time it is needed so
+    /// it can be handed back if the game never loads.
+    /// </summary>
+    private void SetScreensEventSystemEnabled(bool isEnabled)
+    {
+        if (screensEventSystem == null)
+        {
+            screensEventSystem = EventSystem.current;
+        }
+
+        if (screensEventSystem != null)
+        {
+            screensEventSystem.enabled = isEnabled;
         }
     }
 
