@@ -30,6 +30,12 @@ public class TutorialController : MonoBehaviour
     )]
     [SerializeField] private EventSystem screensEventSystem;
 
+    [Tooltip(
+        "The menu scene's Audio Listener - the one on its camera. Left empty, " +
+        "it is taken from that camera."
+    )]
+    [SerializeField] private AudioListener screensAudioListener;
+
     private const string GameSceneName = GameScenes.Game;
     private const string ScreensSceneName = GameScenes.Menu;
 
@@ -94,6 +100,15 @@ public class TutorialController : MonoBehaviour
          */
         SetScreensEventSystemEnabled(false);
 
+        /*
+         * And its ear with it. The player's camera brings its own the moment
+         * the game scene loads, and two of them is a warning from Unity and no
+         * telling which one it listens through. The menu's camera keeps
+         * rendering until the game is ready to be seen - only its hearing goes
+         * early.
+         */
+        SetScreensAudioListenerEnabled(false);
+
         AsyncOperation loadOperation = SceneManager.LoadSceneAsync(
             GameSceneName,
             LoadSceneMode.Additive
@@ -106,8 +121,9 @@ public class TutorialController : MonoBehaviour
                 this
             );
 
-            // The menu is staying after all, so it needs its clicks back.
+            // The menu is staying after all, so it needs itself back.
             SetScreensEventSystemEnabled(true);
+            SetScreensAudioListenerEnabled(true);
 
             isStartingGame = false;
             flashlightButton.interactable = true;
@@ -129,6 +145,7 @@ public class TutorialController : MonoBehaviour
             );
 
             SetScreensEventSystemEnabled(true);
+            SetScreensAudioListenerEnabled(true);
 
             isStartingGame = false;
             flashlightButton.interactable = true;
@@ -169,6 +186,35 @@ public class TutorialController : MonoBehaviour
         if (screensEventSystem != null)
         {
             screensEventSystem.enabled = isEnabled;
+        }
+    }
+
+    /// <summary>
+    /// The menu's own ear, remembered the first time it is needed so it can be
+    /// handed back if the game never loads.
+    /// </summary>
+    private void SetScreensAudioListenerEnabled(bool isEnabled)
+    {
+        if (screensAudioListener == null && screensCamera != null)
+        {
+            screensAudioListener =
+                screensCamera.GetComponent<AudioListener>();
+        }
+
+        /*
+         * Still nothing, so the camera was never filled in either. The game
+         * scene has not been loaded yet at this point, so the only listener
+         * there can be is the menu's own.
+         */
+        if (screensAudioListener == null)
+        {
+            screensAudioListener =
+                FindFirstObjectByType<AudioListener>();
+        }
+
+        if (screensAudioListener != null)
+        {
+            screensAudioListener.enabled = isEnabled;
         }
     }
 
