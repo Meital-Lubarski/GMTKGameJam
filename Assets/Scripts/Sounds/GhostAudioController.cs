@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class GhostAudioController : MonoBehaviour
@@ -10,34 +11,22 @@ public class GhostAudioController : MonoBehaviour
 
     [Header("Ghost Reference")]
     [Tooltip(
-        "Drag the main Ghost object here. " +
-        "The proximity sound will follow this Transform."
+        "Drag the main active Ghost object here, " +
+        "not GhostVisuals or another child object."
     )]
     [SerializeField]
     private Transform ghostTransform;
 
     [Header("Ghost Proximity Loop")]
-    [Tooltip(
-        "Continuous looping sound that is loud when the ghost " +
-        "is close and quiet when the ghost is far away."
-    )]
     [SerializeField]
     private AudioClip ghostProximityLoopClip;
 
     [SerializeField, Range(0f, 1f)]
-    private float ghostProximityVolume = 0.8f;
+    private float ghostProximityVolume = 1f;
 
-    [Tooltip(
-        "Inside this distance, the proximity sound is heard " +
-        "at its full configured volume."
-    )]
     [SerializeField, Min(0.01f)]
-    private float proximityMinDistance = 2f;
+    private float proximityMinDistance = 3f;
 
-    [Tooltip(
-        "At this distance and beyond, the proximity sound " +
-        "is heard at its quietest level."
-    )]
     [SerializeField, Min(0.01f)]
     private float proximityMaxDistance = 35f;
 
@@ -68,20 +57,17 @@ public class GhostAudioController : MonoBehaviour
     private float stunOutVolume = 1f;
 
     [Header("Event Sound Distance")]
-    [Tooltip(
-        "3D distance settings used by attack, choking " +
-        "and stun sounds."
-    )]
     [SerializeField, Min(0.01f)]
-    private float eventMinDistance = 2f;
+    private float eventMinDistance = 3f;
 
     [SerializeField, Min(0.01f)]
     private float eventMaxDistance = 35f;
 
     private AudioSourcePoolable ghostProximityLoop;
 
+    private Coroutine initializationCoroutine;
+
     private bool isStunned;
-    private bool hasStarted;
 
     public bool IsStunned => isStunned;
 
@@ -94,61 +80,118 @@ public class GhostAudioController : MonoBehaviour
                 "More than one GhostAudioController exists.",
                 this
             );
-
-            return;
         }
 
         Instance = this;
     }
 
-    private void Start()
-    {
-        hasStarted = true;
-
-        StartGhostAudio();
-    }
-
     private void OnEnable()
     {
-        /*
-         * Start runs only once. This restarts the loop if
-         * the component is disabled and enabled afterward.
-         */
-        if (hasStarted)
-        {
-            StartGhostAudio();
-        }
+        initializationCoroutine =
+            StartCoroutine(InitializeAudioRoutine());
     }
 
-    private void StartGhostAudio()
+    private IEnumerator InitializeAudioRoutine()
     {
+        const int maximumFramesToWait = 180;
+        int waitedFrames = 0;
+
+        while (
+            (
+                SoundManager.Instance == null ||
+                AudioPool.Instance == null
+            ) &&
+            waitedFrames < maximumFramesToWait
+        )
+        {
+            waitedFrames++;
+            yield return null;
+        }
+
+        initializationCoroutine = null;
+
+        if (SoundManager.Instance == null)
+        {
+            Debug.LogError(
+                "GhostAudioController could not find SoundManager.",
+                this
+            );
+
+            yield break;
+        }
+
+        if (AudioPool.Instance == null)
+        {
+            Debug.LogError(
+                "GhostAudioController could not find AudioPool.",
+                this
+            );
+
+            yield break;
+        }
+
         if (ghostTransform == null)
         {
-            return;
+            Debug.LogError(
+                "GhostAudioController has no Ghost Transform assigned.",
+                this
+            );
+
+            yield break;
+        }
+
+        if (!ghostTransform.gameObject.activeInHierarchy)
+        {
+            Debug.LogError(
+                "The assigned Ghost Transform is inactive. " +
+                "Assign the main active Ghost object instead.",
+                ghostTransform
+            );
+
+            yield break;
         }
 
         StartGhostProximityLoop();
     }
 
-    #region Proximity Loop
-
     public void StartGhostProximityLoop()
     {
-        if (ghostProximityLoop != null ||
-            ghostProximityLoopClip == null ||
-            ghostTransform == null ||
-            SoundManager.Instance == null)
+        if (ghostProximityLoop != null)
         {
             return;
         }
 
-        /*
-         * PlayLoopAtPosition makes the pooled AudioSource
-         * a child of the ghost Transform.
-         *
-         * Therefore, when the AI moves the ghost,
-         * the AudioSource moves together with it.
-         */
+        if (ghostProximityLoopClip == null)
+        {
+            Debug.LogError(
+                "No Ghost Proximity Loop Clip is assigned.",
+                this
+            );
+
+            return;
+        }
+
+        if (ghostTransform == null)
+        {
+            Debug.LogError(
+                "No Ghost Transform is assigned.",
+                this
+            );
+
+            return;
+        }
+
+        if (SoundManager.Instance == null ||
+            AudioPool.Instance == null)
+        {
+            Debug.LogError(
+                "The audio system is not ready.",
+                this
+            );
+
+            return;
+        }
+
         ghostProximityLoop =
             SoundManager.Instance.PlayLoopAtPosition(
                 ghostProximityLoopClip,
@@ -158,6 +201,11 @@ public class GhostAudioController : MonoBehaviour
 
         if (ghostProximityLoop == null)
         {
+            Debug.LogError(
+                "The Ghost Proximity Loop could not be created.",
+                this
+            );
+
             return;
         }
 
@@ -165,6 +213,11 @@ public class GhostAudioController : MonoBehaviour
             ghostProximityLoop.Source,
             proximityMinDistance,
             proximityMaxDistance
+        );
+
+        Debug.Log(
+            "Ghost proximity loop started successfully.",
+            ghostTransform
         );
     }
 
@@ -184,10 +237,6 @@ public class GhostAudioController : MonoBehaviour
 
         ghostProximityLoop = null;
     }
-
-    #endregion
-
-    #region Attack Sounds
 
     public void PlayAttackStarted()
     {
@@ -214,10 +263,6 @@ public class GhostAudioController : MonoBehaviour
             chokingVolume
         );
     }
-
-    #endregion
-
-    #region Stun Sounds
 
     public void EnterStun()
     {
@@ -254,14 +299,6 @@ public class GhostAudioController : MonoBehaviour
         }
     }
 
-    #endregion
-
-    #region Runtime Ghost Assignment
-
-    /// <summary>
-    /// Use this when the ghost is spawned during gameplay
-    /// instead of already existing in the scene.
-    /// </summary>
     public void SetGhostTransform(
         Transform newGhostTransform)
     {
@@ -272,13 +309,19 @@ public class GhostAudioController : MonoBehaviour
         if (ghostTransform != null &&
             isActiveAndEnabled)
         {
-            StartGhostProximityLoop();
+            if (initializationCoroutine != null)
+            {
+                StopCoroutine(
+                    initializationCoroutine
+                );
+            }
+
+            initializationCoroutine =
+                StartCoroutine(
+                    InitializeAudioRoutine()
+                );
         }
     }
-
-    #endregion
-
-    #region Shared Audio
 
     private void PlayGhostEventSound(
         AudioClip clip,
@@ -303,10 +346,6 @@ public class GhostAudioController : MonoBehaviour
             return;
         }
 
-        /*
-         * Attach the event sound to the ghost so that
-         * it follows the ghost while the clip is playing.
-         */
         audio.transform.SetParent(
             ghostTransform
         );
@@ -343,11 +382,6 @@ public class GhostAudioController : MonoBehaviour
                 maximumDistance
             );
 
-        /*
-         * Fully 3D audio.
-         * Unity calculates the distance from this AudioSource
-         * to the AudioListener on the player's camera.
-         */
         source.spatialBlend = 1f;
 
         source.rolloffMode =
@@ -362,10 +396,17 @@ public class GhostAudioController : MonoBehaviour
         source.dopplerLevel = 0f;
     }
 
-    #endregion
-
     private void OnDisable()
     {
+        if (initializationCoroutine != null)
+        {
+            StopCoroutine(
+                initializationCoroutine
+            );
+
+            initializationCoroutine = null;
+        }
+
         StopGhostProximityLoop();
     }
 
