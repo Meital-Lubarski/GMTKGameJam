@@ -37,8 +37,19 @@ public class GameplayAudioController : MonoBehaviour
 
     private float lastButtonHighlightTime = -10f;
 
+    /*
+     * A second one leaves the first alone rather than taking its place: the
+     * duplicate is on its way out, and pointing everyone at it would leave
+     * them holding something that is about to be destroyed.
+     */
     private void Awake()
     {
+        if (Instance != null &&
+            Instance != this)
+        {
+            return;
+        }
+
         Instance = this;
     }
 

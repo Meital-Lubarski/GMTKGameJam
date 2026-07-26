@@ -1,5 +1,16 @@
+using Ghost;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
+/// <summary>
+/// The ghost's voice. It lives on the AudioManager, which outlives every
+/// scene, while the ghost it is about does not: she is built again with each
+/// run and thrown away with it.
+///
+/// So the ghost is not held onto across a scene change. She is looked for
+/// again every time a scene is loaded, and the loop that follows her around is
+/// started over on the new one.
+/// </summary>
 public class GhostAudioController : MonoBehaviour
 {
     public static GhostAudioController Instance
@@ -10,8 +21,10 @@ public class GhostAudioController : MonoBehaviour
 
     [Header("Ghost Reference")]
     [Tooltip(
-        "Drag the main Ghost object here. " +
-        "The proximity sound will follow this Transform."
+        "The ghost the proximity sound follows. Leave this empty when the " +
+        "AudioManager and the ghost are in different scenes: she is found in " +
+        "whichever scene is loaded, which is the only thing that can work " +
+        "across a scene change."
     )]
     [SerializeField]
     private Transform ghostTransform;
@@ -110,6 +123,8 @@ public class GhostAudioController : MonoBehaviour
 
     private void OnEnable()
     {
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+
         /*
          * Start runs only once. This restarts the loop if
          * the component is disabled and enabled afterward.
@@ -120,14 +135,49 @@ public class GhostAudioController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// A new scene means a new ghost, and the one this was following is gone
+    /// along with the sound that was hanging off her. Both are found again.
+    /// </summary>
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        StopGhostProximityLoop();
+
+        ghostTransform = null;
+
+        StartGhostAudio();
+    }
+
     private void StartGhostAudio()
     {
-        if (ghostTransform == null)
+        if (!ResolveGhostTransform())
         {
             return;
         }
 
         StartGhostProximityLoop();
+    }
+
+    /// <summary>
+    /// The ghost that is in the game right now. One dragged in by hand is
+    /// used as it stands; otherwise she is looked for, which is what lets this
+    /// sit in one scene and speak for a ghost in another.
+    /// </summary>
+    private bool ResolveGhostTransform()
+    {
+        if (ghostTransform != null)
+        {
+            return true;
+        }
+
+        EnemyAi ghost = FindFirstObjectByType<EnemyAi>();
+
+        if (ghost != null)
+        {
+            ghostTransform = ghost.transform;
+        }
+
+        return ghostTransform != null;
     }
 
     #region Proximity Loop
@@ -366,6 +416,8 @@ public class GhostAudioController : MonoBehaviour
 
     private void OnDisable()
     {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+
         StopGhostProximityLoop();
     }
 
